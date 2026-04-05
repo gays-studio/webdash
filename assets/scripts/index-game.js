@@ -4079,40 +4079,34 @@ class xs extends Phaser.Scene {
     if (this._infoPopup) {
       return;
     }
-    const _0xd1c6c2 = r / 2;
+    const xPos = r / 2;
     const _0x4c3182 = 320;
     const _0xe2830b = 336;
     this._infoPopup = this.add.container(0, 0).setScrollFactor(0).setDepth(200);
-    const _0x249eb7 = this.add.rectangle(_0xd1c6c2, _0x4c3182, r, n, 0, 100 / 255);
+    const _0x249eb7 = this.add.rectangle(xPos, _0x4c3182, r, n, 0, 100 / 255);
     _0x249eb7.setInteractive();
     this._infoPopup.add(_0x249eb7);
     const _0x14e46f = this.textures.get("GJ_square02").source[0].width * 0.325;
-    const _0x2c64c2 = this._drawScale9(_0xd1c6c2, _0x4c3182, 480, _0xe2830b, "GJ_square02", _0x14e46f, 16777215, 1);
+    const _0x2c64c2 = this._drawScale9(xPos, _0x4c3182, 480, _0xe2830b, "GJ_square02", _0x14e46f, 16777215, 1);
     this._infoPopup.add(_0x2c64c2);
-    const _0x5a0f88 = this.add.image(_0xd1c6c2 - 240 + 20, 172, "GJ_WebSheet", "GJ_closeBtn_001.png").setScale(0.8).setInteractive();
+    const _0x5a0f88 = this.add.image(xPos - 240 + 20, 172, "GJ_WebSheet", "GJ_closeBtn_001.png").setScale(0.8).setInteractive();
     this._infoPopup.add(_0x5a0f88);
     this._expandHitArea(_0x5a0f88, 2);
     this._makeBouncyButton(_0x5a0f88, 0.8, () => this._closeInfoPopup());
-    let _0x32bf66 = 206;
-    const _0x302fca = this.add.bitmapText(_0xd1c6c2, _0x32bf66, "bigFont", "Credits", 40).setOrigin(0.5, 0.5);
+    let yPos = 206;
+    const _0x302fca = this.add.bitmapText(xPos, yPos, "bigFont", "Credits", 40).setOrigin(0.5, 0.5);
     this._infoPopup.add(_0x302fca);
-    _0x32bf66 += 70;
-    const _0x22e4c7 = this.add.bitmapText(_0xd1c6c2, _0x32bf66, "goldFont", "Made by RobTop Games", 40).setOrigin(0.5, 0.5).setScale(0.6);
+    yPos += 70;
+    const _0x22e4c7 = this.add.bitmapText(xPos, yPos, "goldFont", "Made by RobTop Games", 40).setOrigin(0.5, 0.5).setScale(0.6);
     this._infoPopup.add(_0x22e4c7);
-    _0x32bf66 += 60;
-    const _0x3cdf70a = this.add.bitmapText(_0xd1c6c2 - 20, _0x32bf66, "goldFont", "Modded by: AntiMatter, BreadBB", 40).setOrigin(0.5, 0.5).setScale(0.6);
+    yPos += 60;
+    const _0x3cdf70a = this.add.bitmapText(xPos, yPos, "goldFont", "Modded by: AntiMatter, breadbb", 40).setOrigin(0.5, 0.5).setScale(0.6);
     this._infoPopup.add(_0x3cdf70a);
-    _0x32bf66 += 30;
-    const _0x3cdf70b = this.add.bitmapText(_0xd1c6c2 - 20, _0x32bf66, "goldFont", "and Bog", 40).setOrigin(0.5, 0.5).setScale(0.6);
+    yPos += 30;
+    const _0x3cdf70b = this.add.bitmapText(xPos, yPos, "goldFont", "bog, and aloaf", 40).setOrigin(0.5, 0.5).setScale(0.6);
     this._infoPopup.add(_0x3cdf70b);
-    _0x32bf66 += 30;
-    const _0x8233c2 = this.add.text(_0xd1c6c2, 446, "© 2026 RobTop Games. All rights reserved.", {
-      fontSize: "12px",
-      color: "#000000",
-      fontFamily: "Arial"
-    }).setOrigin(0.5, 0.5).setAlpha(0.7).setResolution(2);
-    this._infoPopup.add(_0x8233c2);
-    const _0x97b2a9 = this.add.text(_0xd1c6c2, 463, "Unauthorized copying, distribution, or hosting of this demo is prohibited.", {
+    yPos += 30;
+    const _0x97b2a9 = this.add.text(xPos, 463, "© 2026 RobTop Games. All rights reserved.", {
       fontSize: "12px",
       color: "#000000",
       fontFamily: "Arial"
