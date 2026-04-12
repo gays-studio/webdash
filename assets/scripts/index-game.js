@@ -152,7 +152,7 @@ preload() {
       barFill.fillStyle(0x4488ff, 0.5);
       barFill.fillRoundedRect(barX, barY, fillW, barH / 2, { tl: 8, tr: 8, bl: 0, br: 0 });
       pctText.setText(Math.floor(value * 100) + '%');
-      loadingText.setText(value < 1 ? 'Loading...' : 'Ready!');
+      loadingText.setText(value < 1 ? 'Loading...' : 'Launching!');
     });
     this.load.on("loaderror", _0x550fba => {});
     this.load.atlas("GJ_WebSheet", "assets/sheets/GJ_WebSheet.png", "assets/sheets/GJ_WebSheet.json");
@@ -626,6 +626,21 @@ class us {
     this._orbSprites = [];
     this._coinSprites = [];
     this._sawSprites = [];
+    this._playerColorSprites = [];
+    this._channelSprites = {};
+    this._opacityTriggers = [];
+    this._opacityTriggerIdx = 0;
+    this._activeOpacityTweens = [];
+    this._toggleTriggers = [];
+    this._toggleTriggerIdx = 0;
+    this._pulseTriggers = [];
+    this._pulseTriggerIdx = 0;
+    this._activePulses = [];
+    this._rotateTriggers = [];
+    this._rotateTriggerIdx = 0;
+    this._activeRotations = [];
+    this._speedTriggers = [];
+    this._speedTriggerIdx = 0;
     this._enterEffectTriggers = [];
     this._enterEffectTriggerIdx = 0;
     this._activeEnterEffect = 0;
@@ -653,9 +668,12 @@ class us {
     } = parseLevel(_0x335f1b);
     this._spawnLevelObjects(_0x1b4349);
     this._setUpSettings(settingslist);
+    this._buildGround();
   }
   _setUpSettings(settingsStr) {
     this._initialColors = {};
+    window._blendChannels = {};
+    this._playerCopyChannels = {};
     this._backgroundId = null;
     this._groundId = null;
     if (!settingsStr) return;
@@ -666,13 +684,18 @@ class us {
     }
     let colorStr = settingsMap["kS38"];
     console.log(settingsMap)
-    window._backgroundId = settingsMap["kA6"] ? settingsMap["kA6"] : "01";
-    if (window._backgroundId.length < 2) {
-      window._backgroundId = "0"+window._backgroundId;
-    }
-    window._groundId = settingsMap["kA7"] ? String(settingsMap["kA7"]) : "01";
+    let _levelSpeed = parseInt(settingsMap["kA4"] || "0", 10);
+    if (_levelSpeed === 1) this._speedMultiplier = 0.7;
+    else if (_levelSpeed === 2) this._speedMultiplier = 1.1;
+    else if (_levelSpeed === 3) this._speedMultiplier = 1.3;
+    else if (_levelSpeed === 4) this._speedMultiplier = 1.6;
+    window._backgroundId = settingsMap["kA6"] ? settingsMap["kA6"] : "0";
+    window._groundId = settingsMap["kA7"] ? String(settingsMap["kA7"]) : "0";
+    let _groundIdx = parseInt(window._groundId, 10);
+    if (_groundIdx > 0) _groundIdx = _groundIdx - 1;
+    window._groundId = String(_groundIdx);
     if (window._groundId.length < 2) {
-      window._groundId = "0"+window._groundId;
+      window._groundId = "0" + window._groundId;
     }
     if (colorStr) {
       let channels = colorStr.split("|");
@@ -690,6 +713,13 @@ class us {
             g: parseInt(colorProps[2] || "255", 10),
             b: parseInt(colorProps[3] || "255", 10)
           };
+          if (colorProps[5] === "1") {
+            window._blendChannels[channelId] = true;
+          }
+          let copyTarget = parseInt(colorProps[4] || "0", 10);
+          if (copyTarget > 0) {
+            this._playerCopyChannels[channelId] = copyTarget;
+          }
         }
       }
     }
@@ -719,6 +749,16 @@ class us {
   _buildGround() {
     const _0x73ae12 = this._scene;
     window._groundId = window._groundId ? window._groundId : "01";
+    if (this._groundTiles && this._groundTiles.length > 0) {
+      for (let t of this._groundTiles) { if (t) t.destroy(); }
+      for (let t of this._ceilingTiles) { if (t) t.destroy(); }
+      if (this._groundLine) this._groundLine.destroy();
+      if (this._ceilingLine) this._ceilingLine.destroy();
+      if (this._groundShadowL) this._groundShadowL.destroy();
+      if (this._groundShadowR) this._groundShadowR.destroy();
+      if (this._ceilingShadowL) this._ceilingShadowL.destroy();
+      if (this._ceilingShadowR) this._ceilingShadowR.destroy();
+    }
     
       console.log(window._groundId)
     const _0x3bff90 = _0x73ae12.textures.getFrame("groundSquare_" + window._groundId + "_001.png");
@@ -1083,11 +1123,81 @@ class us {
             tintGround: _0x1b937f._raw[14] === "1"
           });
         }
+        if (_0x1b937f.id === 899 || _0x1b937f.id === 105 || _0x1b937f.id === 104) {
+          let _targetChannel = parseInt(_0x1b937f._raw[23] ?? 0, 10);
+          if (_0x1b937f.id === 105 && _targetChannel === 0) _targetChannel = 1004;
+          if (_0x1b937f.id === 104 && _targetChannel === 0) _targetChannel = 1002;
+          if (_targetChannel > 0) {
+            this._colorTriggers.push({
+              x: _0x1b937f.x * 2,
+              index: _targetChannel,
+              color: {
+                r: parseInt(_0x1b937f._raw[7] ?? 255, 10),
+                g: parseInt(_0x1b937f._raw[8] ?? 255, 10),
+                b: parseInt(_0x1b937f._raw[9] ?? 255, 10)
+              },
+              duration: parseFloat(_0x1b937f._raw[10] ?? 0),
+              tintGround: false
+            });
+          }
+        }
+        if (_0x1b937f.id === 1007) {
+          const _raw = _0x1b937f._raw;
+          this._opacityTriggers.push({
+            x: _0x1b937f.x * 2,
+            targetGroup: parseInt(_raw[51] ?? 0, 10),
+            opacity: parseFloat(_raw[35] ?? 1),
+            duration: parseFloat(_raw[10] ?? 0),
+          });
+        }
+        if (_0x1b937f.id === 1049) {
+          const _raw = _0x1b937f._raw;
+          this._toggleTriggers.push({
+            x: _0x1b937f.x * 2,
+            targetGroup: parseInt(_raw[51] ?? 0, 10),
+            activate: _raw[56] !== "1"
+          });
+        }
+        if (_0x1b937f.id === 1006) {
+          const _raw = _0x1b937f._raw;
+          this._pulseTriggers.push({
+            x: _0x1b937f.x * 2,
+            targetChannel: parseInt(_raw[51] ?? 0, 10),
+            isGroup: _raw[52] === "1",
+            r: parseInt(_raw[7] ?? 255, 10),
+            g: parseInt(_raw[8] ?? 255, 10),
+            b: parseInt(_raw[9] ?? 255, 10),
+            fadeIn: parseFloat(_raw[45] ?? 0),
+            hold: parseFloat(_raw[46] ?? 0),
+            fadeOut: parseFloat(_raw[47] ?? 0),
+            exclusive: _raw[86] === "1"
+          });
+        }
+        if (_0x1b937f.id === 1346) {
+          const _raw = _0x1b937f._raw;
+          this._rotateTriggers.push({
+            x: _0x1b937f.x * 2,
+            targetGroup: parseInt(_raw[51] ?? 0, 10),
+            degrees: parseFloat(_raw[68] ?? 0),
+            duration: parseFloat(_raw[10] ?? 0),
+            easingType: parseInt(_raw[30] ?? 0, 10),
+            lockRotation: _raw[70] === "1"
+          });
+        }
         if (_0x24471f.enterEffect) {
           this._enterEffectTriggers.push({
             x: _0x1b937f.x * 2,
             effect: _0x24471f.enterEffect
           });
+        }
+        if (_0x24471f.sub && _0x24471f.sub.startsWith("speed_")) {
+          const _speedMap = { speed_slow: 0.8, speed_normal: 1.0, speed_fast: 1.1, speed_faster: 1.3, speed_fastest: 1.6, speed_slowest: 0.7 };
+          if (_speedMap[_0x24471f.sub] !== undefined) {
+            this._speedTriggers.push({
+              x: _0x1b937f.x * 2,
+              speed: _speedMap[_0x24471f.sub]
+            });
+          }
         }
         if (_0x1b937f.id === 901) {
           const _raw = _0x1b937f._raw;
@@ -1111,6 +1221,8 @@ class us {
         this._lastObjectX = _0x173c58;
       }
       let _0x4c7589 = _0x24471f ? _0x24471f.frame : null;
+      let _isEmptyFrame = _0x4c7589 === "emptyFrame.png";
+      if (_isEmptyFrame) _0x4c7589 = null;
       if (_0x24471f && _0x24471f.randomFrames) {
         _0x4c7589 = _0x24471f.randomFrames[Math.floor(Math.random() * _0x24471f.randomFrames.length)];
       }
@@ -1140,10 +1252,30 @@ class us {
         let _0x554e0e = L(_0xd15974, _0x2ddc05, _0x1b10a0, _0x4c7589);
         if (_0x554e0e) {
           this._applyVisualProps(_0xd15974, _0x554e0e, _0x4c7589, _0x1b937f, _0x24471f);
+          let _zLayer = _0x1b937f.zLayer || (_0x24471f ? _0x24471f.default_z_layer : 0) || 0;
+          let _zOrder = _0x1b937f.zOrder || (_0x24471f ? _0x24471f.default_z_order : 0) || 0;
+          _0x554e0e.setDepth(_zLayer * 100 + _zOrder);
           this._addVisualSprite(_0x554e0e, _0x36f679);
           _0x554e0e._eeWorldX = _0x173c58;
           _0x554e0e._eeBaseY = _0x1b10a0;
           this._addToSection(_0x554e0e);
+          let _baseChannel = _0x1b937f.color1 || (_0x24471f ? _0x24471f.default_base_color_channel : 0);
+          if (_0x24471f.playerColor && !_0x554e0e._isSaw) {
+            _0x554e0e.setTint(window.mainColor || 0xfb2651);
+            _0x554e0e._isPlayerColor = true;
+            this._playerColorSprites.push(_0x554e0e);
+          }
+          if (_baseChannel && _baseChannel > 0 && _0x24471f.can_color && !_0x554e0e._isSaw && !_0x554e0e._isPlayerColor) {
+            if (!this._channelSprites[_baseChannel]) this._channelSprites[_baseChannel] = [];
+            this._channelSprites[_baseChannel].push(_0x554e0e);
+            _0x554e0e._eeColorChannel = _baseChannel;
+            if (false) {
+              _0x554e0e.setBlendMode(S);
+            }
+          }
+          if (_0x1b937f._raw && _0x1b937f._raw[17] === "1") {
+            _0x554e0e.setBlendMode(S);
+          }
           if (_0x1b937f.groups) {
             const _gids = _0x1b937f.groups.split('.').map(Number).filter(n => n > 0);
             _0x554e0e._eeGroups = _gids;
@@ -1171,20 +1303,25 @@ class us {
               this._orbSprites.push(_0xOrbGlow);
             }
           }
+          if (_0x24471f && _0x24471f.musicPulse) {
+            _0x554e0e._eeAudioScale = true;
+            this._audioScaleSprites.push(_0x554e0e);
+          }
           if (_0x24471f && _0x24471f.type === coinType) {
             _0x554e0e._coinWorldX = _0x173c58;
             _0x554e0e._coinWorldY = _0x7ab528;
             _0x554e0e._coinBaseScale = _0x554e0e.scaleX || 1;
             this._coinSprites.push(_0x554e0e);
           }
-          if (_0x4c7589 && _0x4c7589.indexOf("sawblade") >= 0) {
-            _0x554e0e.setTint(0x000000);
+          if (_0x4c7589 && (_0x4c7589.indexOf("sawblade") >= 0 || _0x4c7589.indexOf("cogwheel") >= 0 || _0x4c7589.indexOf("spinBlade") >= 0)) {
+            let _isSawBlade = _0x4c7589.indexOf("sawblade") >= 0;
+            if (_isSawBlade) _0x554e0e.setTint(0x000000);
             _0x554e0e._isSaw = true;
             this._sawSprites.push(_0x554e0e);
             let _sawMirror = L(_0xd15974, _0x2ddc05, _0x1b10a0, _0x4c7589);
             if (_sawMirror) {
               this._applyVisualProps(_0xd15974, _sawMirror, _0x4c7589, _0x1b937f, _0x24471f);
-              _sawMirror.setTint(0x000000);
+              if (_isSawBlade) _sawMirror.setTint(0x000000);
               _sawMirror.rotation = _0x554e0e.rotation + Math.PI;
               _sawMirror._isSaw = true;
               _sawMirror._eeWorldX = _0x173c58;
@@ -1206,10 +1343,21 @@ class us {
             _0xe3eaec._eeWorldX = _0x173c58;
             _0xe3eaec._eeBaseY = _0x1b10a0;
             this._addToSection(_0xe3eaec);
+            let _detailChannel = _0x1b937f.color2 || (_0x24471f ? _0x24471f.default_detail_color_channel : 0);
+            if (_detailChannel && _detailChannel > 0) {
+              if (!this._channelSprites[_detailChannel]) this._channelSprites[_detailChannel] = [];
+              this._channelSprites[_detailChannel].push(_0xe3eaec);
+              _0xe3eaec._eeColorChannel = _detailChannel;
+              if (false) {
+                _0xe3eaec.setBlendMode(S);
+              }
+            }
           }
         }
         if (_0x24471f.children) {
           for (let _0x2ca803 of _0x24471f.children) {
+            let _childFrame = _0x2ca803.frame || _0x2ca803.texture;
+            if (!_childFrame) continue;
             let _0x3b4e8c = _0x2ca803.dx || 0;
             let _0x172131 = _0x2ca803.dy || 0;
             if (_0x2ca803.localDx !== undefined || _0x2ca803.localDy !== undefined) {
@@ -1224,10 +1372,23 @@ class us {
               let _0x3e62f2 = (_0x1b937f.rot || 0) * Math.PI / 180;
               _0x3b4e8c = _0x38902b * Math.cos(_0x3e62f2) - _0x256a8e * Math.sin(_0x3e62f2);
               _0x172131 = _0x38902b * Math.sin(_0x3e62f2) + _0x256a8e * Math.cos(_0x3e62f2);
+            } else if (_0x2ca803.x !== undefined || _0x2ca803.y !== undefined) {
+              let _cx = (_0x2ca803.x || 0) * 2;
+              let _cy = -(_0x2ca803.y || 0) * 2;
+              if (_0x1b937f.flipX) _cx = -_cx;
+              if (_0x1b937f.flipY) _cy = -_cy;
+              let _0x3e62f2 = (_0x1b937f.rot || 0) * Math.PI / 180;
+              _0x3b4e8c = _cx * Math.cos(_0x3e62f2) - _cy * Math.sin(_0x3e62f2);
+              _0x172131 = _cx * Math.sin(_0x3e62f2) + _cy * Math.cos(_0x3e62f2);
             }
-            let _0x42173e = L(_0xd15974, _0x2ddc05 + _0x3b4e8c, _0x1b10a0 + _0x172131, _0x2ca803.frame);
+            let _0x42173e = L(_0xd15974, _0x2ddc05 + _0x3b4e8c, _0x1b10a0 + _0x172131, _childFrame);
             if (_0x42173e) {
-              this._applyVisualProps(_0xd15974, _0x42173e, _0x2ca803.frame, _0x1b937f, _0x2ca803);
+              this._applyVisualProps(_0xd15974, _0x42173e, _childFrame, _0x1b937f, _0x2ca803);
+              if (_0x2ca803.flip_x) _0x42173e.setFlipX(!_0x42173e.flipX);
+              if (_0x2ca803.flip_y) _0x42173e.setFlipY(!_0x42173e.flipY);
+              if (_0x2ca803.scale_x !== undefined && _0x2ca803.scale_x !== 1) {
+                _0x42173e.setScale(_0x42173e.scaleX * _0x2ca803.scale_x, _0x42173e.scaleY * (_0x2ca803.scale_y || 1));
+              }
               if (_0x2ca803.audioScale) {
                 _0x42173e.setScale(0.1);
                 _0x42173e.setAlpha(0.9);
@@ -1243,14 +1404,29 @@ class us {
               _0x42173e._eeWorldX = _0x173c58 + _0x3b4e8c;
               _0x42173e._eeBaseY = _0x1b10a0 + _0x172131;
               this._addToSection(_0x42173e);
-              if (_0x4c7589 && _0x4c7589.indexOf("sawblade") >= 0) {
-                _0x42173e.setTint(0x000000);
+              let _childChannel = 0;
+              if (_0x2ca803.color_type === "Detail") {
+                _childChannel = _0x1b937f.color2 || (_0x24471f ? _0x24471f.default_detail_color_channel : 0);
+              } else if (_0x2ca803.color_type === "Base") {
+                _childChannel = _0x1b937f.color1 || (_0x24471f ? _0x24471f.default_base_color_channel : 0);
+              }
+              if (_childChannel && _childChannel > 0) {
+                if (!this._channelSprites[_childChannel]) this._channelSprites[_childChannel] = [];
+                this._channelSprites[_childChannel].push(_0x42173e);
+                _0x42173e._eeColorChannel = _childChannel;
+                if (false) {
+                  _0x42173e.setBlendMode(S);
+                }
+              }
+              if (_0x4c7589 && (_0x4c7589.indexOf("sawblade") >= 0 || _0x4c7589.indexOf("cogwheel") >= 0 || _0x4c7589.indexOf("spinBlade") >= 0)) {
+                let _isChildSaw = _0x4c7589.indexOf("sawblade") >= 0;
+                if (_isChildSaw) _0x42173e.setTint(0x000000);
                 _0x42173e._isSaw = true;
                 this._sawSprites.push(_0x42173e);
-                let _childMirror = L(_0xd15974, _0x2ddc05 + _0x3b4e8c, _0x1b10a0 + _0x172131, _0x2ca803.frame);
+                let _childMirror = L(_0xd15974, _0x2ddc05 + _0x3b4e8c, _0x1b10a0 + _0x172131, _childFrame);
                 if (_childMirror) {
-                  this._applyVisualProps(_0xd15974, _childMirror, _0x2ca803.frame, _0x1b937f, _0x2ca803);
-                  _childMirror.setTint(0x000000);
+                  this._applyVisualProps(_0xd15974, _childMirror, _childFrame, _0x1b937f, _0x2ca803);
+                  if (_isChildSaw) _childMirror.setTint(0x000000);
                   _childMirror.rotation = _0x42173e.rotation + Math.PI;
                   _childMirror._isSaw = true;
                   _childMirror._eeWorldX = _0x173c58 + _0x3b4e8c;
@@ -1264,7 +1440,50 @@ class us {
         }
       } else if (!_0x24471f) {
         _0x443c50.add(_0x1b937f.id);
-        console.warn("Object ID " + _0x1b937f.id + " has no definition in allObjects at x=" + _0x173c58 + " y=" + _0x7ab528);
+      }
+      if (_isEmptyFrame && _0x24471f && _0x24471f.children) {
+        let _efdx = _0x173c58;
+        let _efdy = b(_0x7ab528);
+        for (let _efc of _0x24471f.children) {
+          let _efFrame = _efc.frame || _efc.texture;
+          if (!_efFrame || _efFrame === "emptyFrame.png") continue;
+          let _cx = (_efc.x || 0) * 2;
+          let _cy = -(_efc.y || 0) * 2;
+          if (_0x1b937f.flipX) _cx = -_cx;
+          if (_0x1b937f.flipY) _cy = -_cy;
+          let _rot = (_0x1b937f.rot || 0) * Math.PI / 180;
+          let _dx = _cx * Math.cos(_rot) - _cy * Math.sin(_rot);
+          let _dy = _cx * Math.sin(_rot) + _cy * Math.cos(_rot);
+          let _efSpr = L(_0xd15974, _efdx + _dx, _efdy + _dy, _efFrame);
+          if (_efSpr) {
+            this._applyVisualProps(_0xd15974, _efSpr, _efFrame, _0x1b937f, _efc);
+            if (_efc.flip_x) _efSpr.setFlipX(!_efSpr.flipX);
+            if (_efc.flip_y) _efSpr.setFlipY(!_efSpr.flipY);
+            _efSpr._eeWorldX = _0x173c58 + _dx;
+            _efSpr._eeBaseY = _efdy + _dy;
+            _efSpr._eeLayer = 1;
+            this._addToSection(_efSpr);
+            let _efCh = 0;
+            if (_efc.color_type === "Detail") _efCh = _0x1b937f.color2 || (_0x24471f.default_detail_color_channel || 0);
+            else _efCh = _0x1b937f.color1 || (_0x24471f.default_base_color_channel || 0);
+            if (_efCh > 0) {
+              if (!this._channelSprites[_efCh]) this._channelSprites[_efCh] = [];
+              this._channelSprites[_efCh].push(_efSpr);
+              _efSpr._eeColorChannel = _efCh;
+              
+            }
+            if (_0x1b937f.groups) {
+              const _gids = _0x1b937f.groups.split('.').map(Number).filter(n => n > 0);
+              _efSpr._eeGroups = _gids;
+              _efSpr._origWorldX = _efSpr._eeWorldX;
+              _efSpr._origBaseY = _efSpr._eeBaseY;
+              for (const _gid of _gids) {
+                if (!this._groupSprites[_gid]) this._groupSprites[_gid] = [];
+                this._groupSprites[_gid].push(_efSpr);
+              }
+            }
+          }
+        }
       }
       if (_0x24471f && _0x24471f.portalParticle && _0x4c7589) {
         let _0x3a9438 = _0x173c58;
@@ -1341,17 +1560,24 @@ class us {
           }
         };
         if (_0x24471f.type === solidType && _0x24471f.gridW > 0 && _0x24471f.gridH > 0) {
-          let _0x10e5ae = _0x24471f.gridW * a;
-          let _0x11e08d = _0x24471f.gridH * a;
+          let _0x10e5ae = _0x24471f.hitbox ? _0x24471f.hitbox.width * 2 : _0x24471f.gridW * a;
+          let _0x11e08d = _0x24471f.hitbox ? _0x24471f.hitbox.height * 2 : _0x24471f.gridH * a;
           let _0x4628ff = new Collider(solidType, _0x173c58, _0x7ab528, _0x10e5ae, _0x11e08d, _0x1b937f.rot || 0);
           _0x4628ff.objid = _0x1b937f.id;
+          if (_0x24471f.breakable) {
+            _0x4628ff._breakable = true;
+            if (_0x554e0e) _0x4628ff._linkedSprites = [_0x554e0e];
+          }
           _registerCollider(_0x4628ff);
           this.objects.push(_0x4628ff);
           this._addCollisionToSection(_0x4628ff);
         } else if (_0x24471f.type === hazardType) {
           let _0x3f8c4f = 0;
           let _0x2a123d = 0;
-          if (_0x24471f.spriteW > 0 && _0x24471f.spriteH > 0 && _0x24471f.hitboxScaleX !== undefined && _0x24471f.hitboxScaleY !== undefined) {
+          if (_0x24471f.hitbox) {
+            _0x3f8c4f = _0x24471f.hitbox.width * 2;
+            _0x2a123d = _0x24471f.hitbox.height * 2;
+          } else if (_0x24471f.spriteW > 0 && _0x24471f.spriteH > 0 && _0x24471f.hitboxScaleX !== undefined && _0x24471f.hitboxScaleY !== undefined) {
             _0x3f8c4f = _0x24471f.spriteW * _0x24471f.hitboxScaleX * 2;
             _0x2a123d = _0x24471f.spriteH * _0x24471f.hitboxScaleY * 2;
           } else if (_0x24471f.gridW > 0 && _0x24471f.gridH > 0) {
@@ -1387,6 +1613,12 @@ class us {
             cube: "portal_cube",
             ball: "portal_ball",
             wave: portalWaveType,
+            speed_slow: "portal_speed_slow",
+            speed_normal: "portal_speed_normal",
+            speed_fast: "portal_speed_fast",
+            speed_faster: "portal_speed_faster",
+            speed_fastest: "portal_speed_fastest",
+            ufo: "portal_ufo",
             mirrora: "portal_mirror_on",
             mirrorb: "portal_mirror_off",
             shrink: "portal_mini_on",
@@ -1448,6 +1680,11 @@ class us {
     this._colorTriggers.sort((_0x359c7f, _0x28dd8b) => _0x359c7f.x - _0x28dd8b.x);
     this._enterEffectTriggers.sort((_0x3e43f2, _0x5e3d9a) => _0x3e43f2.x - _0x5e3d9a.x);
     this._moveTriggers.sort((a, b) => a.x - b.x);
+    this._opacityTriggers.sort((a, b) => a.x - b.x);
+    this._toggleTriggers.sort((a, b) => a.x - b.x);
+    this._pulseTriggers.sort((a, b) => a.x - b.x);
+    this._rotateTriggers.sort((a, b) => a.x - b.x);
+    this._speedTriggers.sort((a, b) => a.x - b.x);
     this.endXPos = Math.max(screenWidth + 1200, this._lastObjectX + 680);
   }
   createEndPortal(_0x41fbdb) {
@@ -1544,6 +1781,134 @@ class us {
   }
   resetColorTriggers() {
     this._colorTriggerIdx = 0;
+  }
+  checkOpacityTriggers(playerX) {
+    let triggered = [];
+    while (this._opacityTriggerIdx < this._opacityTriggers.length) {
+      let t = this._opacityTriggers[this._opacityTriggerIdx];
+      if (t.x > playerX) break;
+      triggered.push(t);
+      this._opacityTriggerIdx++;
+    }
+    return triggered;
+  }
+  resetOpacityTriggers() {
+    this._opacityTriggerIdx = 0;
+  }
+  checkToggleTriggers(playerX) {
+    let triggered = [];
+    while (this._toggleTriggerIdx < this._toggleTriggers.length) {
+      let t = this._toggleTriggers[this._toggleTriggerIdx];
+      if (t.x > playerX) break;
+      triggered.push(t);
+      this._toggleTriggerIdx++;
+    }
+    return triggered;
+  }
+  resetToggleTriggers() {
+    this._toggleTriggerIdx = 0;
+  }
+  checkPulseTriggers(playerX) {
+    let triggered = [];
+    while (this._pulseTriggerIdx < this._pulseTriggers.length) {
+      let t = this._pulseTriggers[this._pulseTriggerIdx];
+      if (t.x > playerX) break;
+      triggered.push(t);
+      this._pulseTriggerIdx++;
+    }
+    return triggered;
+  }
+  resetPulseTriggers() {
+    this._pulseTriggerIdx = 0;
+    this._activePulses = [];
+  }
+  checkRotateTriggers(playerX) {
+    let triggered = [];
+    while (this._rotateTriggerIdx < this._rotateTriggers.length) {
+      let t = this._rotateTriggers[this._rotateTriggerIdx];
+      if (t.x > playerX) break;
+      triggered.push(t);
+      this._rotateTriggerIdx++;
+    }
+    return triggered;
+  }
+  resetRotateTriggers() {
+    this._rotateTriggerIdx = 0;
+    this._activeRotations = [];
+  }
+  checkSpeedTriggers(playerX) {
+    let triggered = [];
+    while (this._speedTriggerIdx < this._speedTriggers.length) {
+      let t = this._speedTriggers[this._speedTriggerIdx];
+      if (t.x > playerX) break;
+      triggered.push(t);
+      this._speedTriggerIdx++;
+    }
+    return triggered;
+  }
+  resetSpeedTriggers() {
+    this._speedTriggerIdx = 0;
+  }
+  stepPulses(dt) {
+    for (let i = this._activePulses.length - 1; i >= 0; i--) {
+      let p = this._activePulses[i];
+      p.elapsed += dt;
+      let total = p.fadeIn + p.hold + p.fadeOut;
+      if (p.elapsed >= total) {
+        this._activePulses.splice(i, 1);
+        continue;
+      }
+      let t = 0;
+      if (p.elapsed < p.fadeIn) {
+        t = p.fadeIn > 0 ? p.elapsed / p.fadeIn : 1;
+      } else if (p.elapsed < p.fadeIn + p.hold) {
+        t = 1;
+      } else {
+        let fadeElapsed = p.elapsed - p.fadeIn - p.hold;
+        t = p.fadeOut > 0 ? 1 - fadeElapsed / p.fadeOut : 0;
+      }
+      t = Math.max(0, Math.min(1, t));
+      let sprites = p.isGroup ? (this._groupSprites[p.targetChannel] || []) : (this._channelSprites[p.targetChannel] || []);
+      let pr = Math.round(p.baseR + (p.r - p.baseR) * t);
+      let pg = Math.round(p.baseG + (p.g - p.baseG) * t);
+      let pb = Math.round(p.baseB + (p.b - p.baseB) * t);
+      let hex = (pr << 16) | (pg << 8) | pb;
+      for (let s of sprites) {
+        if (s && s.active) s.setTint(hex);
+      }
+    }
+  }
+  stepRotations(dt, scene) {
+    for (let i = this._activeRotations.length - 1; i >= 0; i--) {
+      let r = this._activeRotations[i];
+      r.elapsed += dt;
+      let t = r.duration > 0 ? Math.min(1, r.elapsed / r.duration) : 1;
+      let angle = r.startAngle + r.degrees * t;
+      let sprites = this._groupSprites[r.targetGroup] || [];
+      for (let s of sprites) {
+        if (s && s.active) s.setAngle(angle);
+      }
+      let colliders = this._groupColliders[r.targetGroup] || [];
+      for (let c of colliders) {
+        if (c) c.rotationDegrees = angle;
+      }
+      if (t >= 1) {
+        this._activeRotations.splice(i, 1);
+      }
+    }
+  }
+  applyChannelColors(colorManager) {
+    for (let channelId in this._channelSprites) {
+      let col = colorManager.getColor(parseInt(channelId, 10));
+      let hex = (col.r << 16) | (col.g << 8) | col.b;
+      let sprites = this._channelSprites[channelId];
+      for (let i = 0; i < sprites.length; i++) {
+        let s = sprites[i];
+        if (s && s.active && !s._isSaw && !s._isPlayerColor) {
+          s.setTint(hex);
+        }
+      }
+    }
   }
   _addToSection(_0x4413d3) {
     const _0x4ac40a = Math.max(0, Math.floor(_0x4413d3._eeWorldX / 400));
@@ -2484,6 +2849,13 @@ if (this.p.isFlying) {
       const _0x3f036a = this.p.mirrored ? 1 : -1;
       this._waveSpriteLayer.sprite.x += 1.5 * _0x3f036a;
       this._waveSpriteLayer.sprite.y -= 1;
+      const _waveS = this.p.isMini ? 0.25 : 0.42;
+      for (let _wl of this._waveLayers) {
+        if (_wl && _wl.sprite) {
+          _wl.sprite.scaleX = this.p.mirrored ? -_waveS : _waveS;
+          _wl.sprite.scaleY = this.p.gravityFlipped ? -_waveS : _waveS;
+        }
+      }
     }
     this._updateParticles(cameraX, cameraY, _0x3afedf);
     if (window.showHitboxes) {
@@ -3017,13 +3389,16 @@ hitGround() {
       return 1;
     }
   }
-  flipGravity(flipped, _0x11bbde = 0.5) {
-      console.log("flipGravity called: flipped=" + flipped + " current=" + this.p.gravityFlipped);
+  flipGravity(flipped, velocityScale) {
       if (this.p.gravityFlipped === flipped) {
         return;
       }
       this.p.gravityFlipped = flipped;
-      this.p.yVelocity *= _0x11bbde;
+      if (velocityScale !== undefined) {
+        this.p.yVelocity *= velocityScale;
+      } else {
+        this.p.yVelocity *= 0.5;
+      }
       this.p.onGround = false;
       this.p.canJump = false;
       this.p.isJumping = false;
@@ -3228,7 +3603,8 @@ _updateBallJump(_0x2fe319) {
   }
   _updateWaveJump() {
     const _0x1a4d8f = 10.3860036;
-    let _0x312a7f = (this.p.upKeyDown ? 1 : -1) * this.flipMod() * _0x1a4d8f;
+    const _waveScale = this.p.isMini ? 0.6 : 1.0;
+    let _0x312a7f = (this.p.upKeyDown ? 1 : -1) * this.flipMod() * _0x1a4d8f * _waveScale;
     if (this.p.onGround) {
       const _0x41866f = this.p.onCeiling ? _0x312a7f < 0 : _0x312a7f > 0;
       if (_0x41866f) {
@@ -3240,7 +3616,8 @@ _updateBallJump(_0x2fe319) {
     this.p.canJump = false;
     this.p.isJumping = false;
     this.p.yVelocity = _0x312a7f;
-    this._rotation = _0x312a7f === 0 ? 0 : _0x312a7f > 0 ? -Math.PI / 4 : Math.PI / 4;
+    let _waveAngle = Math.atan2(Math.abs(_0x312a7f), 10.386) * (_0x312a7f > 0 ? -1 : 1);
+    this._rotation = _0x312a7f === 0 ? 0 : _waveAngle;
   }
   checkCollisions(_0x2f5078) {
     const playerSize = this.p.isMini ? 18 : 30;
@@ -3255,6 +3632,7 @@ _updateBallJump(_0x2fe319) {
     let _boostedThisStep = false;
     const _0x198534 = this._gameLayer.getNearbySectionObjects(_0x3c691e);
     for (let gameObj of _0x198534) {
+      if (gameObj._disabled) continue;
       if (gameObj.type === "hazard") {
         if (window.noClip) {
           continue;
@@ -3276,6 +3654,12 @@ _updateBallJump(_0x2fe319) {
       let rotatedTop = gameObj.y - rotatedHalfHeight;
       let rotatedBottom = gameObj.y + rotatedHalfHeight;
       if (!(_0x3c691e + playerSize <= rotatedLeft) && !(_0x3c691e - playerSize >= rotatedRight) && !(_0x8e0d28 + playerSize <= rotatedTop) && !(_0x8e0d28 - playerSize >= rotatedBottom)) {
+        if (gameObj._isCircle) {
+          let _cdx = _0x3c691e - gameObj.x;
+          let _cdy = _0x8e0d28 - gameObj.y;
+          let _dist = Math.sqrt(_cdx * _cdx + _cdy * _cdy);
+          if (_dist > gameObj._radius + playerSize * 0.7) continue;
+        }
         const _colType = gameObj.type;
         if (_colType === "portal_fly") {
           if (!gameObj.activated) {
@@ -3302,6 +3686,7 @@ _updateBallJump(_0x2fe319) {
             this.exitShipMode();
             this.exitBallMode();
             this.exitWaveMode();
+            this.p.isUFO = false;
           }
         } else if (_colType === "portal_ball") {
           if (!gameObj.activated) {
@@ -3316,13 +3701,13 @@ _updateBallJump(_0x2fe319) {
           if (!gameObj.activated) {
             gameObj.activated = true;
             this._playPortalShine(gameObj);
-            this.flipGravity(false, 0.5);
+            this.flipGravity(false);
           }
         } else if (_colType === "portal_gravity_up") {
           if (!gameObj.activated) {
             gameObj.activated = true;
             this._playPortalShine(gameObj);
-            this.flipGravity(true, 0.5);
+            this.flipGravity(true);
           }
         } else if (_colType === "portal_mirror_on") {
           if (!gameObj.activated) {
@@ -3341,6 +3726,49 @@ _updateBallJump(_0x2fe319) {
             gameObj.activated = true;
             this._playPortalShine(gameObj);
             this.p.isMini = true;
+          }
+        } else if (_colType === "portal_speed_slow") {
+          if (!gameObj.activated) {
+            gameObj.activated = true;
+            this._playPortalShine(gameObj);
+            this.p.speedMultiplier = 0.8;
+          }
+        } else if (_colType === "portal_speed_normal") {
+          if (!gameObj.activated) {
+            gameObj.activated = true;
+            this._playPortalShine(gameObj);
+            this.p.speedMultiplier = 1.0;
+          }
+        } else if (_colType === "portal_speed_fast") {
+          if (!gameObj.activated) {
+            gameObj.activated = true;
+            this._playPortalShine(gameObj);
+            this.p.speedMultiplier = 1.1;
+          }
+        } else if (_colType === "portal_speed_faster") {
+          if (!gameObj.activated) {
+            gameObj.activated = true;
+            this._playPortalShine(gameObj);
+            this.p.speedMultiplier = 1.3;
+          }
+        } else if (_colType === "portal_speed_fastest") {
+          if (!gameObj.activated) {
+            gameObj.activated = true;
+            this._playPortalShine(gameObj);
+            this.p.speedMultiplier = 1.6;
+          }
+        } else if (_colType === "portal_ufo") {
+          if (!gameObj.activated) {
+            gameObj.activated = true;
+            this._playPortalShine(gameObj);
+            this.exitShipMode();
+            this.exitBallMode();
+            this.exitWaveMode();
+            this.p.isUFO = true;
+            this.setCubeVisible(true);
+            this.setShipVisible(false);
+            this.setBallVisible(false);
+            this.setWaveVisible(false);
           }
         } else if (_colType === "portal_mini_off") {
           if (!gameObj.activated) {
@@ -3386,22 +3814,23 @@ _updateBallJump(_0x2fe319) {
                 if (_padId === 35) { _padVel = 16 * _grav; _padNextTickVel = _fm * 8 * _grav; }
                 else if (_padId === 140) { _padVel = 5.6 * _grav; }
                 else if (_padId === 1332) { _padVel = 10.08 * _grav; }
-                else if (_padId === 67) { _padVel = 6.4 * _grav; _padFlip = true; }
+                else if (_padId === 67) { _padVel = 22.360064 * 0.7; _padFlip = true; }
               } else if (this.p.isBall) {
                 if (_padId === 35) { _padVel = 9.6 * _grav; }
                 else if (_padId === 140) { _padVel = 6.72 * _grav; }
                 else if (_padId === 1332) { _padVel = 12 * _grav; }
-                else if (_padId === 67) { _padVel = 3.84 * _grav; _padFlip = true; }
+                else if (_padId === 67) { _padVel = 22.360064 * 0.7; _padFlip = true; }
               } else {
                 if (_padId === 35) { _padVel = 16 * _grav; }
                 else if (_padId === 140) { _padVel = 10.4 * _grav; }
                 else if (_padId === 1332) { _padVel = 20 * _grav; }
-                else if (_padId === 67) { _padVel = 6.4 * _grav; _padFlip = true; }
+                else if (_padId === 67) { _padVel = 22.360064; _padFlip = true; }
               }
               this.p.isJumping = true;
               this.p.onGround = false;
               this.p.canJump = false;
-              this.p.yVelocity = _fm * _padVel;
+              let _miniPadScale = this.p.isMini ? 0.75 : 1;
+              this.p.yVelocity = _fm * _padVel * _miniPadScale;
               if (_padFlip) {
                 this.flipGravity(!this.p.gravityFlipped);
               }
@@ -3564,7 +3993,15 @@ _updateBallJump(_0x2fe319) {
           const _0xLandTop = (this.p.yVelocity >= 0 || this.p.onGround) && (_0x3e7199 <= top || _0x135a9d <= top);
           const _0x2841ea = this.p.gravityFlipped ? _0xLandTop : _0xLandBot;
           if (_0x3c1654 && !_0x2841ea) {
-            if (!window.noClip && gameObj.objid !== 143){
+            if (gameObj._breakable) {
+              gameObj._broken = true;
+              gameObj._disabled = true;
+              if (gameObj._linkedSprites) {
+                for (let _bs of gameObj._linkedSprites) { if (_bs) _bs.setVisible(false); }
+              }
+              continue;
+            }
+            if (!window.noClip){
               this.killPlayer();
             }
             return;
@@ -3600,7 +4037,7 @@ _updateBallJump(_0x2fe319) {
             }
             if (!this.p.gravityFlipped && (_0x3e7199 <= top || _0x135a9d <= top) && this.p.yVelocity >= 0) {
               if (_0x3c1654) {
-                if (!window.noClip && gameObj.objid !== 143) {
+                if (gameObj._breakable) { gameObj._broken = true; gameObj._disabled = true; if (gameObj._linkedSprites) { for (let _bs of gameObj._linkedSprites) { if (_bs) _bs.setVisible(false); } } continue; } if (!window.noClip) {
                   this.killPlayer();
                 }
                 return;
@@ -3609,7 +4046,7 @@ _updateBallJump(_0x2fe319) {
             }
             if (this.p.gravityFlipped && !this.p.isFlying && (_0x146a97 >= bottom || _0x869e42 >= bottom) && this.p.yVelocity <= 0) {
               if (_0x3c1654) {
-                if (!window.noClip && gameObj.objid !== 143) {
+                if (gameObj._breakable) { gameObj._broken = true; gameObj._disabled = true; if (gameObj._linkedSprites) { for (let _bs of gameObj._linkedSprites) { if (_bs) _bs.setVisible(false); } } continue; } if (!window.noClip) {
                   this.killPlayer();
                 }
                 return;
@@ -4156,7 +4593,11 @@ class xs extends Phaser.Scene {
     }
     let _0x591888 = this.cache.text.get(window.currentlevel[2]);
     if (_0x591888) {
-      this._level.loadLevel(_0x591888);
+      try {
+        this._level.loadLevel(_0x591888);
+      } catch(e) {
+        console.error("Failed to load level:", e);
+      }
     }
     if (this._level._initialColors) {
       for (let chId in this._level._initialColors) {
@@ -4164,7 +4605,53 @@ class xs extends Phaser.Scene {
         this._colorManager.setInitialColor(parseInt(chId, 10), col);
       }
     }
+    if (this._level._playerCopyChannels) {
+      for (let chId in this._level._playerCopyChannels) {
+        let copyFrom = this._level._playerCopyChannels[chId];
+        let pColor;
+        if (copyFrom === 1) {
+          pColor = window.mainColor || 0xfb2651;
+        } else {
+          pColor = window.secondaryColor || 0xffffff;
+        }
+        this._colorManager.setInitialColor(parseInt(chId, 10), {
+          r: (pColor >> 16) & 0xFF,
+          g: (pColor >> 8) & 0xFF,
+          b: pColor & 0xFF
+        });
+      }
+    }
+    if (this._level._blendChannels) {
+      this._colorManager._blendChannels = this._level._blendChannels;
+    }
+    if (this._level._speedMultiplier) {
+      this._state.speedMultiplier = this._level._speedMultiplier;
+    }
     this._level.createEndPortal(this);
+    let _bgNum = parseInt(window._backgroundId || "0", 10);
+    if (_bgNum > 0) {
+      let _bgKey = "game_bg_" + (_bgNum - 1);
+      try {
+        if (this.textures.exists(_bgKey)) {
+          this._bg.destroy();
+          this._bg = this.add.tileSprite(0, 0, screenWidth, screenHeight, _bgKey).setOrigin(0, 0).setScrollFactor(0).setDepth(-10);
+          const _bgH = this.textures.get(_bgKey).source[0].height;
+          this._bgInitY = _bgH - screenHeight - o;
+        }
+      } catch(e) { console.warn("BG swap failed:", e); }
+    }
+    if (window._backgroundId) {
+      let _bgIdx = parseInt(window._backgroundId, 10) - 1;
+      let _bgKey = "game_bg_" + _bgIdx;
+      try {
+        if (_bgIdx >= 0 && this.textures.exists(_bgKey)) {
+          this._bg.destroy();
+          this._bg = this.add.tileSprite(0, 0, screenWidth, screenHeight, _bgKey).setOrigin(0, 0).setScrollFactor(0).setDepth(-10);
+          const _bgH = this.textures.get(_bgKey).source[0].height;
+          this._bgInitY = _bgH - screenHeight - o;
+        }
+      } catch(e) { console.warn("BG swap failed:", e); }
+    }
     this._glitterCenterX = 0;
     this._glitterCenterY = T;
     this._glitterEmitter = this.add.particles(0, 0, "GJ_WebSheet", {
@@ -4194,6 +4681,7 @@ class xs extends Phaser.Scene {
     this._level.additiveContainer.add(this._glitterEmitter);
     this._bg.setTint(this._colorManager.getHex(fs));
     this._level.setGroundColor(this._colorManager.getHex(gs));
+    this._level.applyChannelColors(this._colorManager);
     this._level.additiveContainer.setVisible(false);
     this._level.container.setVisible(false);
     this._level.topContainer.setVisible(false);
@@ -4213,7 +4701,7 @@ class xs extends Phaser.Scene {
     this._player.setBallVisible(false);
     this._logo = this.add.image(0, 100, "GJ_WebSheet", "GJ_logo_001.png").setScrollFactor(0).setDepth(30);
     this._robLogo = this.add.image(160, 555, "GJ_WebSheet", "RobTopLogoBig_001.png").setScrollFactor(0).setDepth(30).setScale(0.9);
-    this._copyrightText = this.add.text(0, 625, "© 2026 RobTop Games · geometrydash.com", {
+    this._copyrightText = this.add.text(0, 625, "© 2026 RobTop Games | Build: web-dashers/dev", {
       fontSize: "14px",
       color: "#ffffff",
       fontFamily: "Arial"
@@ -4236,7 +4724,7 @@ class xs extends Phaser.Scene {
       this._downloadBtns.push(_0x1d293f);
     }
     const _0x28fa5b = this.scale.isFullscreen;
-    this._menuFsBtn = this.add.image(33, 33, "GJ_WebSheet", _0x28fa5b ? "toggleFullscreenOff_001.png" : "toggleFullscreenOn_001.png").setScrollFactor(0).setDepth(30).setScale(0.64).setAlpha(0.8).setTint(Phaser.Display.Color.GetColor(255, 255, 255)).setInteractive();
+    this._menuFsBtn = this.add.image(33, 33, "GJ_WebSheet", _0x28fa5b ? "toggleFullscreenOff_001.png" : "toggleFullscreenOn_001.png").setScrollFactor(0).setDepth(30).setScale(0.64).setAlpha(0.8).setTint(Phaser.Display.Color.GetColor(0, Math.round(102), 255)).setInteractive();
     this._expandHitArea(this._menuFsBtn, 1.5);
     this._makeBouncyButton(this._menuFsBtn, 0.64, () => {
       const _0x26b7c = !this.scale.isFullscreen;
@@ -4290,7 +4778,441 @@ class xs extends Phaser.Scene {
       this._percentageLabel.setVisible(true)
       this._percentageLabel.setDepth(9999);
     }, () => this._menuActive && !this._playBtnPressed);
+      //icon stufff
+    this._iconBtn = this.add.image(0, 0, "GJ_GameSheet03", "GJ_garageBtn_001.png").setScrollFactor(0).setDepth(30).setInteractive().setScale(1);
+    this._iconBtnSelected = false;
+    this._makeBouncyButton(this._iconBtn, 1, () => {
+      this._openIconSelector();
+      if (this._iconBtn) {
+        this.tweens.killTweensOf(this._iconBtn);
+        this._iconBtn.y = 320;
+        this._iconBtn.setScale(1);
+        this.tweens.add({
+          targets: this._iconBtn,
+          y: 324,
+          duration: 750,
+          ease: "Quad.InOut",
+          yoyo: true,
+          repeat: -1
+        });
+      }
+    }, () => this._menuActive);
+
+    this._iconOverlay = null;
+
+    const _iconFrameSets = {
+      icon: [
+        "player_04_001.png", "player_03_001.png", "player_05_001.png", "player_06_001.png", "player_07_001.png", "player_22_001.png", "player_30_001.png", "player_35_001.png", "player_84_001.png", "player_132_001.png",
+      ],
+      ship: [
+        "ship_01_001.png","ship_02_001.png","ship_03_001.png", "ship_04_001.png", "ship_17_001.png", "ship_22_001.png","ship_33_001.png", "ship_11_001.png", "ship_12_001.png", "ship_10_001.png",
+      ],
+      ball: [
+        "player_ball_01_001.png", "player_ball_02_001.png", "player_ball_03_001.png", "player_ball_04_001.png", "player_ball_05_001.png", "player_ball_06_001.png", "player_ball_07_001.png", "player_ball_08_001.png", "player_ball_09_001.png", "player_ball_10_001.png",
+      ],
+    };
+
+    const _iconWindowProps = {
+      icon: "currentPlayer",
+      ship: "currentShip",
+      ball: "currentBall",
+    };
+
+    const _iconAtlas = {
+      icon: "GJ_GameSheetIcons",
+      ship: "GJ_GameSheetIcons",
+      ball: "GJ_GameSheetIcons",
+    };
+
+    const _tabBtnFrames = {
+      icon: { on: "gj_iconBtn_on_001.png",  off: "gj_iconBtn_off_001.png"  },
+      ship: { on: "gj_shipBtn_on_001.png",  off: "gj_shipBtn_off_001.png"  },
+      ball: { on: "gj_ballBtn_on_001.png",  off: "gj_ballBtn_off_001.png"  },
+    };
+
+    this._openIconSelector = (startTab = "icon") => {
+      if (this._iconOverlay) return;
+
+      const sw = screenWidth;
+      const sh = screenHeight;
+
+      const overlay = this.add.graphics().setScrollFactor(0).setDepth(100);
+      const gradientSteps = 80;
+      for (let gi = 0; gi < gradientSteps; gi++) {
+        const t = gi / (gradientSteps - 1);
+        const r1 = Math.round(0x92 + (0x3a - 0x92) * t);
+        const g1 = Math.round(0x92 + (0x3a - 0x92) * t);
+        const b1 = Math.round(0x92 + (0x3a - 0x92) * t);
+        const bandColor = (r1 << 16) | (g1 << 8) | b1;
+        const bandY = Math.floor(gi * sh / gradientSteps);
+        const bandH = Math.ceil(sh / gradientSteps) + 1;
+        overlay.fillStyle(bandColor, 1);
+        overlay.fillRect(0, bandY, sw, bandH);
+      }
+      this._iconOverlay = overlay;
+
+      const blocker = this.add.zone(sw / 2, sh / 2, sw, sh)
+        .setScrollFactor(0).setDepth(101).setInteractive();
+
+      const titleTxt = this.add.bitmapText(sw / 2, 60, "goldFont", "Icon Selector", 32)
+        .setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(105);
+
+      this._iconOverlayObjects = [overlay, blocker, titleTxt];
+
+      const backBtn = this.add.image(50, 48, "GJ_GameSheet03", "GJ_arrow_03_001.png")
+        .setScrollFactor(0).setDepth(104).setFlipX(true)
+        .setScale(1, -1).setRotation(Math.PI).setInteractive();
+      this._iconOverlayObjects.push(backBtn);
+      backBtn.on("pointerup", () => this._closeIconSelector());
+
+      const topBarHeight = 100;
+      const lineY = topBarHeight + 100;
+      const linePadding = 230;
+      const topBar = this.add.graphics().setScrollFactor(0).setDepth(102);
+      const lineSegments = 40;
+      const lineStart = linePadding;
+      const lineEnd = sw - linePadding;
+      const lineWidth = lineEnd - lineStart;
+      const fadeZone = lineWidth * 0.25;
+      for (let li = 0; li < lineSegments; li++) {
+    const t0 = li / lineSegments;
+    const t1 = (li + 1) / lineSegments;
+    const x0 = lineStart + t0 * lineWidth;
+    const x1 = lineStart + t1 * lineWidth;
+    const mid = (t0 + t1) / 2 * lineWidth;
+    let alpha;
+    if (mid < fadeZone) {
+      alpha = mid / fadeZone;
+    } else if (mid > lineWidth - fadeZone) {
+      alpha = (lineWidth - mid) / fadeZone;
+    } else {
+      alpha = 1;
+    }
+    topBar.lineStyle(3, 0xFFFFFF, alpha);
+    topBar.beginPath();
+    topBar.moveTo(x0, lineY);
+    topBar.lineTo(x1, lineY);
+    topBar.strokePath();
+  }
+      this._iconOverlayObjects.push(topBar);
+
+      const cols = 5;
+      const iconSize = 80;
+      const padding = 30;
+      const containerPadding = 60;
+      const containerWidth  = cols * iconSize + (cols - 1) * padding + 12;
+      const containerHeight = 2 * iconSize + 1 * padding + 12;
+      const containerX = sw / 2 - containerWidth / 2;
+      const containerY = sh - containerHeight - containerPadding - 100;
+      const startX = containerX + 6 + iconSize / 2;
+      const startY = containerY + 6 + iconSize / 2;
+
+      const gridBg = this.add.graphics().setScrollFactor(0).setDepth(102);
+      gridBg.fillStyle(0x454444, 1);
+      gridBg.fillRoundedRect(containerX, containerY, containerWidth, containerHeight, 10);
+      this._iconOverlayObjects.push(gridBg);
+
+      const cornerTL = this.add.image(0,  0,  "GJ_GameSheet03", "GJ_sideArt_001.png").setScrollFactor(0).setDepth(103).setOrigin(0, 0).setFlipX(true).setFlipY(false).setRotation();
+      const cornerTR = this.add.image(sw, 0,  "GJ_GameSheet03", "GJ_sideArt_001.png").setScrollFactor(0).setDepth(103).setOrigin(1, 0).setFlipY(false).setFlipX(false);
+      const cornerBR = this.add.image(sw, sh, "GJ_GameSheet03", "GJ_sideArt_001.png").setScrollFactor(0).setDepth(103).setOrigin(1, 1).setFlipX(false).setFlipY(true);
+      const cornerBL = this.add.image(0,  sh, "GJ_GameSheet03", "GJ_sideArt_001.png").setScrollFactor(0).setDepth(103).setOrigin(0, 1).setFlipX(true).setFlipY(true);
+      this._iconOverlayObjects.push(cornerTL, cornerTR, cornerBR, cornerBL);
+
+      const navDotBtn = this.add.image(sw / 2, containerY + containerHeight + 30, "GJ_GameSheet03", "gj_navDotBtn_on_001.png").setScrollFactor(0).setDepth(104).setScale(0.75);
+      this._iconOverlayObjects.push(navDotBtn);
+
+      const rainbowColors = [
+        0xFF0000, 0xFF4500, 0xFF7F00, 0xFFAA00, 0xFFD700,
+        0xFFFF00, 0xAAFF00, 0x00FF00, 0x00FF7F, 0x00FFFF,
+        0x007FFF, 0x0000FF, 0x7F00FF, 0xFF00FF, 0xFF007F,
+        0xFFFFFF, 0xC0C0C0, 0x808080, 0x404040, 0x000000,
+      ];
+
+      const colorBtnSize = 35;
+      const colorPadding = 4;
+      const colorRowWidth = rainbowColors.length * (colorBtnSize + colorPadding) - colorPadding;
+      const colorRow1Y = containerY + containerHeight + 75;
+      const colorRow2Y = colorRow1Y + colorBtnSize + 16;
+      const colorRowStartX = sw / 2 - colorRowWidth / 2 + colorBtnSize / 2;
+
+      const colorLabel1 = this.add.text(sw / 2 - colorRowWidth / 2, colorRow1Y - 14, "", {
+        fontSize: "11px", color: "#ffffff", fontFamily: "Arial"}).setScrollFactor(0).setDepth(104).setOrigin(0, 0.5).setAlpha(1);
+      this._iconOverlayObjects.push(colorLabel1);
+
+      const colorLabel2 = this.add.text(sw / 2 - colorRowWidth / 2, colorRow2Y - 14, "", {
+        fontSize: "11px", color: "#ffffff", fontFamily: "Arial"}).setScrollFactor(0).setDepth(104).setOrigin(0, 0.5).setAlpha(1);
+      this._iconOverlayObjects.push(colorLabel2);
+
+      for (let ci = 0; ci < rainbowColors.length; ci++) {
+        const cx = colorRowStartX + ci * (colorBtnSize + colorPadding);
+
+        const btn1AtlasInfo = R(this, "GJ_colorBtn_001.png");
+        let btn1;
+        if (btn1AtlasInfo) {
+          btn1 = this.add.image(cx, colorRow1Y, btn1AtlasInfo.atlas, btn1AtlasInfo.frame).setScrollFactor(0).setDepth(104).setTint(rainbowColors[ci]).setScale(0.5).setInteractive();
+        } else {
+          btn1 = this.add.rectangle(cx, colorRow1Y, colorBtnSize, colorBtnSize, rainbowColors[ci]).setScrollFactor(0).setDepth(104).setInteractive();
+        }
+        this._iconOverlayObjects.push(btn1);
+
+        const btn2AtlasInfo = R(this, "GJ_colorBtn_001.png");
+        let btn2;
+        if (btn2AtlasInfo) {
+          btn2 = this.add.image(cx, colorRow2Y, btn2AtlasInfo.atlas, btn2AtlasInfo.frame).setScrollFactor(0).setDepth(104).setTint(rainbowColors[ci]).setScale(0.5).setInteractive();
+        } else {
+          btn2 = this.add.rectangle(cx, colorRow2Y, colorBtnSize, colorBtnSize, rainbowColors[ci]).setScrollFactor(0).setDepth(104).setInteractive();
+        }
+        this._iconOverlayObjects.push(btn2);
+
+        ((color, b1, b2) => {
+          b1.on("pointerover", () => b1.setAlpha(0.7));
+          b1.on("pointerout",  () => b1.setAlpha(1));
+          b1.on("pointerup",   () => {
+            window.mainColor = color;
+            if (this._player) {
+              if (this._player._playerSpriteLayer) this._player._playerSpriteLayer.sprite.setTint(color);
+              if (this._player._shipSpriteLayer)   this._player._shipSpriteLayer.sprite.setTint(color);
+              if (this._player._ballSpriteLayer)   this._player._ballSpriteLayer.sprite.setTint(color);
+              if (this._player._waveSpriteLayer)   this._player._waveSpriteLayer.sprite.setTint(color);
+              if (this._player._particleEmitter)   this._player._particleEmitter.tint = color;
+            }
+            if (this._level && this._level._playerColorSprites) {
+              for (let _pcs of this._level._playerColorSprites) {
+                if (_pcs && _pcs.active) _pcs.setTint(color);
+              }
+            }
+            selectedIcon.setTint(color);
+          });
+
+          b2.on("pointerover", () => b2.setAlpha(0.7));
+          b2.on("pointerout",  () => b2.setAlpha(1));
+          b2.on("pointerup",   () => {
+            window.secondaryColor = color;
+            if (this._player) {
+              if (this._player._playerGlowLayer    && this._player._playerGlowLayer.sprite)    this._player._playerGlowLayer.sprite.setTint(color);
+              if (this._player._playerOverlayLayer && this._player._playerOverlayLayer.sprite) this._player._playerOverlayLayer.sprite.setTint(color);
+              if (this._player._shipGlowLayer      && this._player._shipGlowLayer.sprite)      this._player._shipGlowLayer.sprite.setTint(color);
+              if (this._player._shipOverlayLayer   && this._player._shipOverlayLayer.sprite)   this._player._shipOverlayLayer.sprite.setTint(color);
+              if (this._player._ballGlowLayer      && this._player._ballGlowLayer.sprite)      this._player._ballGlowLayer.sprite.setTint(color);
+              if (this._player._ballOverlayLayer   && this._player._ballOverlayLayer.sprite)   this._player._ballOverlayLayer.sprite.setTint(color);
+              if (this._player._waveGlowLayer      && this._player._waveGlowLayer.sprite)      this._player._waveGlowLayer.sprite.setTint(color);
+              if (this._player._waveOverlayLayer   && this._player._waveOverlayLayer.sprite)   this._player._waveOverlayLayer.sprite.setTint(color);
+              if (this._player._streak)             this._player._streak._color = color;
+            }
+                selectedIconExtra.setTint(window.secondaryColor);
+                _refreshPreview(currentTab, _getPreviewFrame(currentTab));
+          });
+        })(rainbowColors[ci], btn1, btn2);
+      }
+
+      const previewY = lineY - 35;
+      const selectedIconExtra = this.add.image(sw / 2, previewY, _iconAtlas[startTab], null).setScrollFactor(0).setDepth(102).setVisible(false);
+      const selectedIcon = this.add.image(sw / 2, previewY, _iconAtlas[startTab], null).setScrollFactor(0).setDepth(103);
+
+      const _getPreviewFrame = (tab) => {
+        const prop   = _iconWindowProps[tab];
+        const frames = _iconFrameSets[tab];
+        const match  = frames.find(f => f.replace("_001.png", "") === window[prop]);
+        return match || frames[0];
+      };
+
+      const _refreshPreview = (tab, frame) => {
+        selectedIcon.setTexture(_iconAtlas[tab], frame);
+        const s = Math.min(80 / (selectedIcon.width || 80), 80 / (selectedIcon.height || 80)) * 0.85;
+        selectedIcon.setScale(s);
+        selectedIcon.setTint(window.mainColor);
+        const extraFrame = frame.replace("_001.png", "_2_001.png");
+        const extraInfo = R(this, extraFrame);
+        if (extraInfo) {
+          selectedIconExtra.setTexture(extraInfo.atlas, extraInfo.frame).setVisible(true).setScale(s).setTint(window.secondaryColor);
+        } else {
+          selectedIconExtra.setVisible(false);
+        }
+      };
+
+      _refreshPreview(startTab, _getPreviewFrame(startTab));
+      this._iconOverlayObjects.push(selectedIconExtra, selectedIcon);
+
+      const tabBtnY = containerY - 40;
+      const tabKeys = ["icon", "ship", "ball"];
+      const tabOffsets     = [-109,  0,    109  ];
+      const tabRotations   = { icon: -Math.PI/2, ship: 0,  ball: -Math.PI/2 };
+      const tabFlipXStates = { icon: true,       ship: false, ball: true    };
+      const tabBtnSprites  = {};
+
+      const _switchTab = (tab) => {
+        for (const k of tabKeys) {
+          if (tabBtnSprites[k]) {
+            tabBtnSprites[k].setTexture("GJ_GameSheet03",
+              k === tab ? _tabBtnFrames[k].on : _tabBtnFrames[k].off);
+          }
+        }
+        _refreshPreview(tab, _getPreviewFrame(tab));
+        _buildGrid(tab);
+      };
+
+      tabKeys.forEach((tab, i) => {
+        const isActive = tab === startTab;
+        const btn = this.add.image(sw / 2 + tabOffsets[i], tabBtnY, "GJ_GameSheet03",
+            isActive ? _tabBtnFrames[tab].on : _tabBtnFrames[tab].off)
+          .setScrollFactor(0).setDepth(104).setScale(0.75)
+          .setRotation(tabRotations[tab]).setFlipX(tabFlipXStates[tab])
+          .setInteractive();
+        tabBtnSprites[tab] = btn;
+        this._iconOverlayObjects.push(btn);
+        btn.on("pointerup", () => _switchTab(tab));
+        btn.on("pointerover", () => btn.setAlpha(0.75));
+        btn.on("pointerout",  () => btn.setAlpha(1));
+      });
+
+      this._iconGridObjects = [];
+
+      const selLabel = this.add.image(0, 0, "GJ_GameSheet03", "GJ_select_001.png").setScrollFactor(0).setDepth(106).setOrigin(0.5, 0.5).setVisible(false);
+      this._iconOverlayObjects.push(selLabel);
+
+      const _buildGrid = (tab) => {
+        for (const o of this._iconGridObjects) {
+          if (o && o.destroy) o.destroy();
+        }
+        this._iconGridObjects = [];
+        selLabel.setVisible(false);
+
+        const frames = _iconFrameSets[tab];
+        const atlas  = _iconAtlas[tab];
+        const prop   = _iconWindowProps[tab];
+
+        frames.forEach((frame, idx) => {
+          const col = idx % cols;
+          const row = Math.floor(idx / cols);
+          const ix  = startX + col * (iconSize + padding);
+          const iy  = startY + row * (iconSize + padding);
+
+          const hitRect = this.add.rectangle(ix, iy, iconSize, iconSize, 0x000000, 0).setScrollFactor(0).setDepth(104).setInteractive();
+
+          const iconImg = this.add.image(ix, iy, atlas, frame).setScrollFactor(0).setDepth(103);
+          const origScale = Math.min(
+            iconSize / (iconImg.width  || iconSize),
+            iconSize / (iconImg.height || iconSize)
+          ) * 0.7;
+          iconImg.setScale(origScale);
+
+          const extraFrame = frame.replace("_001.png", "_2_001.png");
+          const extraInfo = R(this, extraFrame);
+          const extraImg = extraInfo
+            ? this.add.image(ix, iy, extraInfo.atlas, extraInfo.frame).setScrollFactor(0).setDepth(102).setScale(origScale)
+            : null;
+
+          if (extraImg) this._iconGridObjects.push(extraImg);
+          this._iconGridObjects.push(iconImg, hitRect);
+
+          ((capturedFrame, capturedImg, capturedExtra, capturedOrigScale) => {
+            hitRect.on("pointerover",  () => { capturedImg.setAlpha(0.65); if (capturedExtra) capturedExtra.setAlpha(0.65); });
+            hitRect.on("pointerout",   () => {
+              capturedImg.setAlpha(1); capturedImg.setScale(capturedOrigScale);
+              if (capturedExtra) { capturedExtra.setAlpha(1); capturedExtra.setScale(capturedOrigScale); }
+            });
+            hitRect.on("pointerdown",  () => { capturedImg.setScale(capturedOrigScale * 1.15); if (capturedExtra) capturedExtra.setScale(capturedOrigScale * 1.15); });
+            hitRect.on("pointerup",    () => {
+              capturedImg.setScale(capturedOrigScale);
+              capturedImg.setAlpha(1);
+              if (capturedExtra) { capturedExtra.setScale(capturedOrigScale); capturedExtra.setAlpha(1); }
+              if (!this._iconOverlay) return;
+
+              selLabel.setPosition(capturedImg.x, capturedImg.y).setScale(1).setVisible(true);
+
+              window[prop] = capturedFrame.replace("_001.png", "");
+
+              if (tab === "icon" && this._player) {
+                const layerMap = [
+                  { lp: "_playerSpriteLayer",  suffix: "_001.png",       tint: window.mainColor      },
+                  { lp: "_playerGlowLayer",    suffix: "_glow_001.png",  tint: window.secondaryColor },
+                  { lp: "_playerOverlayLayer", suffix: "_2_001.png",     tint: window.secondaryColor },
+                  { lp: "_playerExtraLayer",   suffix: "_extra_001.png", tint: window.mainColor      },
+                ];
+                for (const { lp, suffix, tint } of layerMap) {
+                  const layer = this._player[lp];
+                  if (!layer || !layer.sprite) continue;
+                  const found = R(this, `${window.currentPlayer}${suffix}`);
+                  if (found) {
+                    layer.sprite.setTexture(found.atlas, found.frame);
+                    if (tint !== null) layer.sprite.setTint(tint);
+                  }
+                }
+              }
+              if (tab === "ship" && this._player) {
+                const layerMap = [
+                  { lp: "_shipSpriteLayer",  suffix: "_001.png",       tint: window.mainColor      },
+                  { lp: "_shipGlowLayer",    suffix: "_glow_001.png",  tint: window.secondaryColor },
+                  { lp: "_shipOverlayLayer", suffix: "_2_001.png",     tint: window.secondaryColor },
+                  { lp: "_shipExtraLayer",   suffix: "_2_001.png",     tint: window.secondaryColor },
+                ];
+                for (const { lp, suffix, tint } of layerMap) {
+                  const layer = this._player[lp];
+                  if (!layer || !layer.sprite) continue;
+                  const found = R(this, `${window.currentShip}${suffix}`);
+                  if (found) {
+                    layer.sprite.setTexture(found.atlas, found.frame);
+                    if (tint !== null) layer.sprite.setTint(tint);
+                  }
+                }
+              }
+              if (tab === "ball" && this._player) {
+                const layerMap = [
+                  { lp: "_ballSpriteLayer",  suffix: "_001.png",      tint: window.mainColor      },
+                  { lp: "_ballGlowLayer",    suffix: "_glow_001.png", tint: window.secondaryColor },
+                  { lp: "_ballOverlayLayer", suffix: "_2_001.png",    tint: window.secondaryColor },
+                ];
+                for (const { lp, suffix, tint } of layerMap) {
+                  const layer = this._player[lp];
+                  if (!layer || !layer.sprite) continue;
+                  const found = R(this, `${window.currentBall}${suffix}`);
+                  if (found) {
+                    layer.sprite.setTexture(found.atlas, found.frame);
+                    layer.sprite.setTint(tint);
+                  }
+                }
+              }
+
+              _refreshPreview(tab, capturedFrame);
+            });
+          })(frame, iconImg, extraImg, origScale);
+        });
+      };
+
+      _buildGrid(startTab);
+    };
+
+    this._closeIconSelector = () => {
+      if (!this._iconOverlay) return;
+      if (this._iconGridObjects) {
+        for (const obj of this._iconGridObjects) {
+          if (obj && obj.destroy) obj.destroy();
+        }
+        this._iconGridObjects = null;
+      }
+      if (this._iconOverlayObjects) {
+        for (const obj of this._iconOverlayObjects) {
+          if (obj && obj.destroy) obj.destroy();
+        }
+        this._iconOverlayObjects = null;
+      }
+      this._iconOverlay = null;
+    };
     this._positionMenuItems();
+    //icon stuff sequel
+    if (this._iconBtn) {
+  this._iconBtn.x = (screenWidth / 2) - this._playBtn.width / 2 - 100 - (this._iconBtn.width * this._iconBtn.scaleX) / 2;
+  this.tweens.killTweensOf(this._iconBtn, "y");
+  this._iconBtn.y = 320;
+  this.tweens.add({
+    targets: this._iconBtn,
+    y: 324,
+    duration: 750,
+    ease: "Quad.InOut",
+    yoyo: true,
+    repeat: -1
+  });
+}
     this._spaceWasDown = false;
     this._spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this._upKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
@@ -4306,6 +5228,12 @@ class xs extends Phaser.Scene {
     this._expandHitArea(this._pauseBtn, 2);
     this._pauseBtn.on("pointerdown", () => this._pauseGame());
     this._escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this._escKey.on("down", () => {
+    if (this._iconOverlay) {
+  this._closeIconSelector();
+  return;
+}
+    });
     this._escKey.on("down", () => {
       if (this._paused) {
         this._audio.playEffect("quitSound_01");
@@ -4397,7 +5325,7 @@ class xs extends Phaser.Scene {
     this._fpsAccum = 0;
     this._fpsFrames = 0;
     this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.H).on("down", () => {
-      this._fpsText.setVisible(!this._fpsText.visible);
+      window.showHitboxes = !window.showHitboxes;
     });
   }
   toggleGlitter(_0x34c21a) {
@@ -4575,13 +5503,15 @@ class xs extends Phaser.Scene {
     const _0x22e4c7 = this.add.bitmapText(xPos, yPos, "goldFont", "Made by RobTop Games", 40).setOrigin(0.5, 0.5).setScale(0.6);
     this._infoPopup.add(_0x22e4c7);
     yPos += 60;
-    const _0x3cdf70a = this.add.bitmapText(xPos, yPos, "goldFont", "Modded by: AntiMatter, breadbb", 40).setOrigin(0.5, 0.5).setScale(0.6);
+    const _0x3cdf70a = this.add.bitmapText(xPos, yPos, "goldFont", "Modded by: AntiMatter, breadbb,", 40).setOrigin(0.5, 0.5).setScale(0.6);
     this._infoPopup.add(_0x3cdf70a);
     yPos += 30;
-    const _0x3cdf70b = this.add.bitmapText(xPos, yPos, "goldFont", "bog, aloaf, PinkDev, and arbstro", 40).setOrigin(0.5, 0.5).setScale(0.6);
+    const _0x3cdf70b = this.add.bitmapText(xPos, yPos, "goldFont", "aloaf, and PinkDev", 40).setOrigin(0.5, 0.5).setScale(0.6);
     this._infoPopup.add(_0x3cdf70b);
     yPos += 30;
-    const _0x97b2a9 = this.add.text(xPos, 463, "© 2026 RobTop Games. All rights reserved.", {
+    const _contribLabel = this.add.bitmapText(xPos, yPos, "goldFont", "Contributors: rohanis0000", 40).setOrigin(0.5, 0.5).setScale(0.5);
+    this._infoPopup.add(_contribLabel);
+    const _0x97b2a9 = this.add.text(xPos, 473, "© 2026 RobTop Games | Build: web-dashers/dev", {
       fontSize: "12px",
       color: "#000000",
       fontFamily: "Arial"
@@ -4778,6 +5708,21 @@ class xs extends Phaser.Scene {
         }
       });
     }
+    //icon stuff the threequel
+    if (this._iconBtn) {
+  this._closeIconSelector && this._closeIconSelector();
+  this.tweens.killTweensOf(this._iconBtn);
+  this.tweens.add({
+    targets: this._iconBtn,
+    scale: 0.01,
+    duration: 200,
+    ease: "Quad.In",
+    onComplete: () => {
+      this._iconBtn.destroy();
+      this._iconBtn = null;
+    }
+  });
+}
     if (this._robLogo) {
       this.tweens.add({
         targets: this._robLogo,
@@ -4988,8 +5933,27 @@ class xs extends Phaser.Scene {
     this._level.shiftGroundTiles(this._cameraX - _0x2ba78a);
     this._level.resetGroundState();
     this._level.resetColorTriggers();
+    this._state.speedMultiplier = this._level._speedMultiplier || 1.0;
+    this._state.isUFO = false;
     this._level.resetEnterEffectTriggers();
     this._level.resetMoveTriggers();
+    this._level.resetOpacityTriggers();
+    this._level.resetToggleTriggers();
+    this._level.resetPulseTriggers();
+    this._level.resetRotateTriggers();
+    this._level.resetSpeedTriggers();
+    for (let _grpId in this._level._groupSprites) {
+      for (let _s of this._level._groupSprites[_grpId]) {
+        if (_s) { _s.setAlpha(1); _s.setVisible(true); }
+      }
+    }
+    if (this._level._groupColliders) {
+      for (let _grpId in this._level._groupColliders) {
+        for (let _c of this._level._groupColliders[_grpId]) {
+          if (_c) _c._disabled = false;
+        }
+      }
+    }
     this._level.resetVisibility();
     if (this._orbGfx) { this._orbGfx.clear(); }
     this._colorManager.reset();
@@ -5236,6 +6200,12 @@ class xs extends Phaser.Scene {
       return;
     }
     if (this._state.isDead) {
+      if (this._level && this._level._sawSprites) {
+        const _sawRotDead = _0xaf2ffd * 0.003;
+        for (let _saw of this._level._sawSprites) {
+          if (_saw && _saw.active) _saw.rotation += _sawRotDead;
+        }
+      }
       if (!this._deathSoundPlayed) {
         this._audio.stopMusic();
         this._audio.playEffect("explode_11", {
@@ -5404,6 +6374,66 @@ if (!this._state.isFlying && !this._state.isWave) {
     this._colorManager.step(_0xaf2ffd / 1000);
     this._bg.setTint(this._colorManager.getHex(fs));
     this._level.setGroundColor(this._colorManager.getHex(gs));
+    this._level.applyChannelColors(this._colorManager);
+    for (let _opTrig of this._level.checkOpacityTriggers(_0x5464ab)) {
+      let _grp = _opTrig.targetGroup;
+      let _targetAlpha = _opTrig.opacity;
+      let _dur = _opTrig.duration;
+      if (_grp > 0 && this._level._groupSprites[_grp]) {
+        let _sprites = this._level._groupSprites[_grp];
+        if (_dur <= 0) {
+          for (let _s of _sprites) { if (_s) _s.setAlpha(_targetAlpha); }
+        } else {
+          for (let _s of _sprites) {
+            if (_s) this.tweens.add({ targets: _s, alpha: _targetAlpha, duration: _dur * 1000 });
+          }
+        }
+      }
+    }
+    for (let _togTrig of this._level.checkToggleTriggers(_0x5464ab)) {
+      let _grp = _togTrig.targetGroup;
+      let _show = _togTrig.activate;
+      if (_grp > 0 && this._level._groupSprites[_grp]) {
+        for (let _s of this._level._groupSprites[_grp]) {
+          if (_s) _s.setVisible(_show);
+        }
+      }
+      if (_grp > 0 && this._level._groupColliders[_grp]) {
+        for (let _c of this._level._groupColliders[_grp]) {
+          if (_c) _c._disabled = !_show;
+        }
+      }
+    }
+    for (let _pTrig of this._level.checkPulseTriggers(_0x5464ab)) {
+      let ch = _pTrig.targetChannel;
+      let baseCol = this._colorManager.getColor(ch);
+      this._level._activePulses.push({
+        targetChannel: ch,
+        isGroup: _pTrig.isGroup,
+        r: _pTrig.r, g: _pTrig.g, b: _pTrig.b,
+        baseR: baseCol.r, baseG: baseCol.g, baseB: baseCol.b,
+        fadeIn: _pTrig.fadeIn, hold: _pTrig.hold, fadeOut: _pTrig.fadeOut,
+        elapsed: 0
+      });
+    }
+    for (let _rTrig of this._level.checkRotateTriggers(_0x5464ab)) {
+      let grp = _rTrig.targetGroup;
+      let startAngle = 0;
+      let sprites = this._level._groupSprites[grp];
+      if (sprites && sprites[0]) startAngle = sprites[0].angle || 0;
+      this._level._activeRotations.push({
+        targetGroup: grp,
+        degrees: _rTrig.degrees,
+        duration: _rTrig.duration,
+        startAngle: startAngle,
+        elapsed: 0
+      });
+    }
+    this._level.stepPulses(_0xaf2ffd / 1000);
+    this._level.stepRotations(_0xaf2ffd / 1000, this);
+    for (let _sTrig of this._level.checkSpeedTriggers(_0x5464ab)) {
+      this._state.speedMultiplier = _sTrig.speed;
+    }
     this._level.updateVisibility(this._cameraX);
     this._level.checkEnterEffectTriggers(_0x5464ab);
     this._level.applyEnterEffects(this._cameraX);
@@ -5938,7 +6968,7 @@ const Ss = {
   render: {
     powerPreference: "high-performance"
   },
-  scale: {
+scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
