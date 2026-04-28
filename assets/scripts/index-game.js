@@ -243,7 +243,6 @@ preload() {
 
     for (const lvlarray of window.allLevels){
       this.load.text(lvlarray[2], "assets/levels/"+lvlarray[2].split("_")[1]+".txt");
-      this.load.audio(lvlarray[0], "assets/music/"+(lvlarray[4] ? lvlarray[4] : lvlarray[1].replaceAll(" ", ""))+".mp3");
     }
  
     this.load.audio("explode_11", "assets/sfx/explode_11.ogg");
@@ -5411,9 +5410,139 @@ class ys {
     this._lastAudio = 0.1;
     this._lastPeak = 0;
     this._silenceCounter = 0;
+    this._musicPlaying = false;
+    this._loadingSongKey = null;
+    this._pendingSongKey = null;
+    this._pendingStartOffset = 0;
+    this._pendingFadeInDuration = 0;
+    this._pendingSeekOverride = null;
+  }
+  get musicPlaying() {
+    return this._musicPlaying || !!this._loadingSongKey;
   }
   _effectiveVolume() {
     return this._userMusicVol * 0.8;
+  }
+  _getExpectedSongKey() {
+    const isPracticeMode = this._scene._practicedMode && this._scene._practicedMode.practiceMode;
+    return isPracticeMode ? "StayInsideMe" : window.currentlevel[0];
+  }
+  _getSongFileBase(songKey) {
+    if (!songKey) return null;
+    let match = null;
+    if (window.allLevels && Array.isArray(window.allLevels)) {
+      match = window.allLevels.find(level => level[0] === songKey);
+    }
+    let name = null;
+    if (match) {
+      name = match[4] ? match[4] : match[1];
+    } else if (window.currentlevel && window.currentlevel[0] === songKey) {
+      name = window.currentlevel[4] ? window.currentlevel[4] : window.currentlevel[1];
+    }
+    if (!name) return songKey;
+    return name.replaceAll(" ", "");
+  }
+  _getSongUrl(songKey) {
+    const base = this._getSongFileBase(songKey);
+    if (!base) return null;
+    return "assets/music/" + base + ".mp3";
+  }
+  _isEvictableSongKey(songKey) {
+    if (!songKey) return false;
+    if (songKey === "menu_music" || songKey === "StayInsideMe") return false;
+    if (songKey.startsWith("ng_song_")) return false;
+    return true;
+  }
+  _evictSongFromCache(songKey) {
+    if (!this._isEvictableSongKey(songKey)) return;
+    if (this._scene.cache.audio.exists(songKey)) {
+      this._scene.cache.audio.remove(songKey);
+    }
+  }
+  _queueSongLoad(songKey, songUrl, options = {}) {
+    if (!songKey || !songUrl) return;
+    const startOffset = options.startOffset || 0;
+    const fadeInDuration = options.fadeInDuration || 0;
+    const seekOverride = options.seekOverride;
+    if (this._loadingSongKey === songKey) {
+      this._pendingSongKey = songKey;
+      this._pendingStartOffset = startOffset;
+      this._pendingFadeInDuration = fadeInDuration;
+      this._pendingSeekOverride = seekOverride;
+      return;
+    }
+    this._loadingSongKey = songKey;
+    this._pendingSongKey = songKey;
+    this._pendingStartOffset = startOffset;
+    this._pendingFadeInDuration = fadeInDuration;
+    this._pendingSeekOverride = seekOverride;
+    const loader = this._scene.load;
+    const onComplete = (key, type) => {
+      if (key !== songKey || type !== "audio") return;
+      loader.off("filecomplete", onComplete);
+      loader.off("loaderror", onError);
+      this._loadingSongKey = null;
+      const expectedKey = this._getExpectedSongKey();
+      if (expectedKey !== songKey) {
+        return;
+      }
+      const pendingOffset = this._pendingStartOffset || 0;
+      const pendingFade = this._pendingFadeInDuration || 0;
+      const pendingSeek = this._pendingSeekOverride;
+      this._pendingSongKey = null;
+      this._pendingStartOffset = 0;
+      this._pendingFadeInDuration = 0;
+      this._pendingSeekOverride = null;
+      this._playCachedSong(songKey, {
+        startOffset: pendingOffset,
+        fadeInDuration: pendingFade,
+        seekOverride: pendingSeek
+      });
+    };
+    const onError = (file) => {
+      if (!file || file.key !== songKey) return;
+      loader.off("filecomplete", onComplete);
+      loader.off("loaderror", onError);
+      this._loadingSongKey = null;
+    };
+    loader.on("filecomplete", onComplete);
+    loader.on("loaderror", onError);
+    loader.audio(songKey, songUrl);
+    const isLoading = typeof loader.isLoading === "function" ? loader.isLoading() : loader.isLoading;
+    if (!isLoading) {
+      loader.start();
+    }
+  }
+  _playCachedSong(songKey, options = {}) {
+    if (!songKey || !this._scene.cache.audio.exists(songKey)) {
+      return;
+    }
+    if (this._music) {
+      this._music.stop();
+      this._music.destroy();
+    }
+    const fadeInDuration = options.fadeInDuration || 0;
+    const startOffset = options.startOffset || 0;
+    const seekOverride = options.seekOverride;
+    this._music = this._scene.sound.add(songKey, {
+      loop: true,
+      volume: fadeInDuration > 0 ? 0 : this._effectiveVolume()
+    });
+    this._music.play();
+    if (typeof seekOverride === "number") {
+      this._music.seek = seekOverride;
+    } else if (startOffset > 0) {
+      this._music.seek = startOffset;
+    }
+    this._setupAnalyser();
+    this._musicPlaying = true;
+    if (fadeInDuration > 0) {
+      this._scene.tweens.add({
+        targets: this._music,
+        volume: this._effectiveVolume(),
+        duration: fadeInDuration
+      });
+    }
   }
   startMusic(StartPosOffset = 0) {
     let savedPosition = 0;
@@ -5426,41 +5555,45 @@ class ys {
       this._music.stop();
       this._music.destroy();
     }
-    if (this._scene._practicedMode && this._scene._practicedMode.practiceMode) {
+    this._musicPlaying = false;
+    const isPracticeMode = this._scene._practicedMode && this._scene._practicedMode.practiceMode;
+    const targetKey = isPracticeMode ? "StayInsideMe" : window.currentlevel[0];
+    if (savedKey && savedKey !== targetKey) {
+      this._evictSongFromCache(savedKey);
+    }
+    if (isPracticeMode) {
       const practiceSongKey = "StayInsideMe";
+      const seekOverride = savedKey === practiceSongKey && savedPosition > 0 ? savedPosition : null;
       if (this._scene.cache.audio.exists(practiceSongKey)) {
-        this._music = this._scene.sound.add(practiceSongKey, {
-          loop: true,
-          volume: this._effectiveVolume()
-        });
-        this._music.play();
-        if (savedKey === practiceSongKey && savedPosition > 0) {
-          this._music.seek = savedPosition;
-        }
-        this._setupAnalyser();
-        this._musicPlaying = true;
+        this._playCachedSong(practiceSongKey, { seekOverride });
         return;
       }
+      this._queueSongLoad(practiceSongKey, this._getSongUrl(practiceSongKey), { seekOverride });
+      this._setupAnalyser();
+      return;
     }
     if (window._onlineSongBuffer && window._onlineSongKey === window.currentlevel[0]) {
       const startOffset = window.settingsMap['kA13'] ? new Number(window.settingsMap['kA13']) : 0;
       this._playOnlineBuffer(window._onlineSongBuffer, startOffset + StartPosOffset);
       this._setupAnalyser();
+      this._musicPlaying = true;
       return;
     }
     const _songKey = window.currentlevel[0];
-    if (!this._scene.cache.audio.exists(_songKey)) {
+    if (_songKey && _songKey.startsWith("ng_song_")) {
       this._setupAnalyser();
       return;
     }
-    this._music = this._scene.sound.add(_songKey, {
-      loop: true,
-      volume: this._effectiveVolume()
-    });
-    this._music.play();
+    if (!this._scene.cache.audio.exists(_songKey)) {
+      const songUrl = this._getSongUrl(_songKey);
+      this._queueSongLoad(_songKey, songUrl, {
+        startOffset: (window.settingsMap['kA13'] ? new Number(window.settingsMap['kA13']) : 0) + StartPosOffset
+      });
+      this._setupAnalyser();
+      return;
+    }
     const startOffset = window.settingsMap['kA13'] ? new Number(window.settingsMap['kA13']) : 0;
-    this._music.seek = startOffset + StartPosOffset;
-    this._setupAnalyser();
+    this._playCachedSong(_songKey, { startOffset: startOffset + StartPosOffset });
   }
   _playOnlineBuffer(audioBuffer, startOffset = 0) {
     const soundMgr = this._scene.game.sound;
@@ -5530,11 +5663,17 @@ class ys {
     };
 
     this._music = musicObj;
+    this._musicPlaying = true;
   }
   startMenuMusic() {
+    const prevKey = this._music ? this._music.key : null;
     if (this._music) {
       this._music.stop();
       this._music.destroy();
+    }
+    this._musicPlaying = false;
+    if (prevKey) {
+      this._evictSongFromCache(prevKey);
     }
     this._music = this._scene.sound.add("menu_music", {
       loop: true,
@@ -5542,11 +5681,13 @@ class ys {
     });
     this._music.play();
     this._setupAnalyser();
+    this._musicPlaying = true;
   }
   stopMusic() {
     if (this._music) {
       this._music.stop();
     }
+    this._musicPlaying = false;
   }
   isplaying() {
     return this._music != null && this._music.isPlaying != false;
@@ -5582,18 +5723,19 @@ class ys {
       this._music.stop();
       this._music.destroy();
     }
-    if (this._scene._practicedMode && this._scene._practicedMode.practiceMode) {
+    this._musicPlaying = false;
+    const isPracticeMode = this._scene._practicedMode && this._scene._practicedMode.practiceMode;
+    if (isPracticeMode) {
       const practiceSongKey = "StayInsideMe";
       if (this._scene.cache.audio.exists(practiceSongKey)) {
-        this._music = this._scene.sound.add(practiceSongKey, {
-          loop: true,
-          volume: 0
-        });
-        this._music.play();
-        this._setupAnalyser();
-        this._musicPlaying = true;
+        this._playCachedSong(practiceSongKey, { fadeInDuration: _0x3eff28 });
         return;
       }
+      this._queueSongLoad(practiceSongKey, this._getSongUrl(practiceSongKey), {
+        fadeInDuration: _0x3eff28
+      });
+      this._setupAnalyser();
+      return;
     }
     
     if (window._onlineSongBuffer && window._onlineSongKey === window.currentlevel[0]) {
@@ -5603,19 +5745,21 @@ class ys {
         this._onlineGain.gain.value = this._effectiveVolume();
       }
       this._setupAnalyser();
+      this._musicPlaying = true;
       return;
     }
-    this._music = this._scene.sound.add(window.currentlevel[0], {
-      loop: true,
-      volume: 0
-    });
-    this._music.play();
-    this._setupAnalyser();
-    this._scene.tweens.add({
-      targets: this._music,
-      volume: this._effectiveVolume(),
-      duration: _0x3eff28
-    });
+    const songKey = window.currentlevel[0];
+    if (songKey && songKey.startsWith("ng_song_")) {
+      this._setupAnalyser();
+      return;
+    }
+    if (!this._scene.cache.audio.exists(songKey)) {
+      const songUrl = this._getSongUrl(songKey);
+      this._queueSongLoad(songKey, songUrl, { fadeInDuration: _0x3eff28 });
+      this._setupAnalyser();
+      return;
+    }
+    this._playCachedSong(songKey, { fadeInDuration: _0x3eff28 });
   }
   fadeOutMusic(_0x43835d = 1500) {
     if (this._music && this._music.isPlaying) {
@@ -5628,6 +5772,7 @@ class ys {
           if (this._music) {
             this._music.stop();
           }
+          this._musicPlaying = false;
         }
       });
     }
