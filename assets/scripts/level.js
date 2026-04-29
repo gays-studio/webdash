@@ -1267,6 +1267,22 @@ class us {
           } else {
             console.warn("portal ID " + levelObj.id + " has no matching sub-type (sub=" + objectDef.sub + ")");
           }
+        } else if (objectDef.type === slopeType) {
+          // slope objects: use _SLOPE_DATA registry when available
+          const sd = _SLOPE_DATA[levelObj.id] || null;
+          const slopeW = (sd ? sd.gw : (objectDef.gridW || 1)) * a;
+          const slopeH = (sd ? sd.gh : (objectDef.gridH || 1)) * a;
+          const slopeObj = new Collider(slopeType, worldX, worldY, slopeW, slopeH, levelObj.rot || 0);
+          slopeObj.slopeAngleDeg = sd ? sd.angle : 45;
+          // slope direction: flipX reverses direction
+          slopeObj.slopeDir = levelObj.flipX ? -1 : 1;
+          // some slopes are 'square' filled shapes
+          slopeObj.slopeIsFilled = sd ? !!sd.sq : false;
+          slopeObj.slopeFlipY = !!levelObj.flipY;
+          _registerCollider(slopeObj);
+          this.objects.push(slopeObj);
+          this._addCollisionToSection(slopeObj);
+          console.log("slope collision created: id=" + levelObj.id + " x=" + worldX + " y=" + worldY + " w=" + slopeW + " h=" + slopeH + " angle=" + slopeObj.slopeAngleDeg);
         } else if (objectDef.type === padType) {
           let padW = objectDef.gridW * a;
           let padH = objectDef.gridH * a;
