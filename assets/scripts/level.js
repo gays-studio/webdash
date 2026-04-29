@@ -59,7 +59,9 @@ function parseObject(objectString) {
       // Following are for startpos
       gameMode: parseInt(objectData['kA2'] ?? '0', 10),
       miniMode: parseInt(objectData['kA3'] ?? '0', 10),
-      speed: parseInt(objectData['kA4'] ?? '0', 10),
+      // `kA4` can be used for custom speed portals. Preserve raw string and parse as float.
+      speedRaw: objectData['kA4'] ?? '0',
+      speed: parseFloat(objectData['kA4'] ?? '0') || 0,
       mirrored: parseInt(objectData['kA28'] ?? '0', 10),
       flipGravity: '1' === (objectData['kA11'] ?? '0'),
       _raw: objectData
@@ -1305,7 +1307,20 @@ class us {
             203: SpeedPortal.THREE_TIMES,
             1334: SpeedPortal.FOUR_TIMES,
           };
-          speedobject.speedValue = speedMap[levelObj.id] ?? SpeedPortal.ONE_TIMES;
+          // If the level object provided a custom speed via kA4, interpret it as a multiplier
+          // relative to ONE_TIMES (e.g., 2.0 => twice the base speed, 0.5 => half).
+          if (levelObj.speed && !isNaN(levelObj.speed) && levelObj.speed > 0) {
+            speedobject.speedValue = SpeedPortal.ONE_TIMES * levelObj.speed;
+          } else if (levelObj.speedRaw && levelObj.speedRaw.trim() !== "0") {
+            const parsed = parseFloat(levelObj.speedRaw);
+            if (!isNaN(parsed) && parsed > 0) {
+              speedobject.speedValue = SpeedPortal.ONE_TIMES * parsed;
+            } else {
+              speedobject.speedValue = speedMap[levelObj.id] ?? SpeedPortal.ONE_TIMES;
+            }
+          } else {
+            speedobject.speedValue = speedMap[levelObj.id] ?? SpeedPortal.ONE_TIMES;
+          }
           speedobject.speedId = levelObj.id;
           _registerCollider(speedobject);
           this.objects.push(speedobject);
