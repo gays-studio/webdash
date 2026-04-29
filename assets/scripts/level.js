@@ -350,6 +350,9 @@ class us {
     } = parseLevel(levelData);
     this._spawnLevelObjects(levelObjects);
     this._setUpSettings(settingslist);
+    // mark level as loaded and notify scene so audio or other systems can act
+    this._loaded = true;
+    try { if (this._scene && this._scene.events) this._scene.events.emit('levelLoaded'); } catch (e) {}
   }
   _setUpSettings(settingsStr) {
     this._initialColors = {};

@@ -15,6 +15,13 @@ class ys {
     return this._userMusicVol * 0.8;
   }
   startMusic(StartPosOffset = 0) {
+    // If level objects are still spawning on low-end devices, defer music start
+    try {
+      if (this._scene && this._scene._level && !this._scene._level._loaded) {
+        this._scene.events.once('levelLoaded', () => this.startMusic(StartPosOffset));
+        return;
+      }
+    } catch(e) {}
     let savedPosition = 0;
     let savedKey = null;
     if (this._music && this._music.isPlaying) {
@@ -61,14 +68,17 @@ class ys {
       // Phaser 3 dynamic loader
       this._scene.load.audio(_songKey, musicPath);
       this._scene.load.once('complete', () => {
-        this._music = this._scene.sound.add(_songKey, {
-          loop: true,
-          volume: this._effectiveVolume()
-        });
-        this._music.play();
-        const startOffset = window.settingsMap['kA13'] ? new Number(window.settingsMap['kA13']) : 0;
-        this._music.seek = startOffset + StartPosOffset;
-        this._setupAnalyser();
+        try {
+          if (!this._scene || !this._scene.sys || !this._scene.sys.isActive()) return;
+          this._music = this._scene.sound.add(_songKey, {
+            loop: true,
+            volume: this._effectiveVolume()
+          });
+          this._music.play();
+          const startOffset = window.settingsMap['kA13'] ? new Number(window.settingsMap['kA13']) : 0;
+          this._music.seek = startOffset + StartPosOffset;
+          this._setupAnalyser();
+        } catch (e) {}
       });
       this._scene.load.start();
       return;
@@ -165,7 +175,18 @@ class ys {
   }
   stopMusic() {
     if (this._music) {
-      this._music.stop();
+      try { this._music.stop(); } catch(e) {}
+      try { this._music.destroy(); } catch(e) {}
+      this._music = null;
+    }
+    if (this._onlineSource) {
+      try { this._onlineSource.stop(); } catch(e) {}
+      try { this._onlineSource.disconnect(); } catch(e) {}
+      this._onlineSource = null;
+    }
+    if (this._onlineGain) {
+      try { this._onlineGain.disconnect(); } catch(e) {}
+      this._onlineGain = null;
     }
   }
   isplaying() {

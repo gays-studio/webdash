@@ -1523,6 +1523,13 @@ class xs extends Phaser.Scene {
         this._audio.resumeMusic();
       }
     });
+    // Ensure music stops if the scene is shutdown or slept (e.g., leaving level)
+    this.events.on('shutdown', () => {
+      try { this._audio.stopMusic(); } catch(e) {}
+    });
+    this.events.on('sleep', () => {
+      try { this._audio.stopMusic(); } catch(e) {}
+    });
     window.addEventListener("orientationchange", () => {
       this.time.delayedCall(100, () => this.scale.refresh());
     });
