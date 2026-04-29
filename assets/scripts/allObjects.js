@@ -1,3 +1,12 @@
+// -1: No color
+// 1: P Color
+// 2: P Color 2
+// 1000: Background Color
+// 1001: Ground Color
+// 1004: Default Color (white)
+// 1006: Glow
+// 1011: Detail Color FOr animated blocks (ill add some later)
+
 window.allobjects = function() {
     return {
   "0": {
@@ -96,6 +105,7 @@ window.allobjects = function() {
     "gridW": 0,
     "gridH": 0,
     "black": true,
+    "can_color": false,
     "spriteW": 30,
     "spriteH": 27,
     "hitboxScaleX": 0.3,
@@ -431,6 +441,7 @@ window.allobjects = function() {
   "40": {
     "type": "solid",
     "frame": "plank_01_001.png",
+    "can_color": false,
     "gridW": 1,
     "gridH": 0.5,
     "children": [
@@ -627,6 +638,7 @@ window.allobjects = function() {
     "gridW": 0,
     "gridH": 0,
     "black": true,
+    "can_color": false,
     "spriteW": 30,
     "spriteH": 18,
     "hitboxScaleX": 0.3,
@@ -638,6 +650,7 @@ window.allobjects = function() {
   "62": {
     "type": "solid",
     "frame": "square_b_01_001.png",
+    "can_color": false,
     "gridW": 1,
     "gridH": 0.5,
     "default_detail_color_channel": -1,
@@ -647,6 +660,7 @@ window.allobjects = function() {
   "63": {
     "type": "solid",
     "frame": "square_b_02_001.png",
+    "can_color": false,
     "gridW": 1,
     "gridH": 0.5,
     "default_detail_color_channel": -1,
@@ -656,6 +670,7 @@ window.allobjects = function() {
   "64": {
     "type": "solid",
     "frame": "square_b_03_001.png",
+    "can_color": false,
     "gridW": 1,
     "gridH": 0.5,
     "default_detail_color_channel": -1,
@@ -665,6 +680,7 @@ window.allobjects = function() {
   "65": {
     "type": "solid",
     "frame": "square_b_04_001.png",
+    "can_color": false,
     "gridW": 1,
     "gridH": 0.5,
     "default_detail_color_channel": -1,
@@ -674,6 +690,7 @@ window.allobjects = function() {
   "66": {
     "type": "solid",
     "frame": "square_b_05_001.png",
+    "can_color": false,
     "gridW": 1,
     "gridH": 0.5,
     "default_detail_color_channel": -1,
@@ -692,6 +709,7 @@ window.allobjects = function() {
   "68": {
     "type": "solid",
     "frame": "square_b_06_001.png",
+    "can_color": false,
     "gridW": 1,
     "gridH": 0.5,
     "default_detail_color_channel": -1,
@@ -807,13 +825,11 @@ window.allobjects = function() {
       {
         "frame": "square_c_05_001.png",
         "localDy": 0,
-        "tint": 65280,
         "z": -1
       },
       {
         "frame": "blockOutline_05_001.png",
         "localDy": 0,
-        "tint": 65280,
         "z": 1
       }
     ],
@@ -822,7 +838,7 @@ window.allobjects = function() {
     "default_z_order": 2
   },
   "76": {
-    "can_color": true,
+    "can_color": false,
     "children": [
       {
         "frame": "square_d_05_001.png",
@@ -862,7 +878,7 @@ window.allobjects = function() {
     "default_z_order": 2
   },
   "77": {
-    "can_color": true,
+    "can_color": false,
     "children": [
       {
         "frame": "square_d_05_001.png",
@@ -884,7 +900,7 @@ window.allobjects = function() {
     "default_z_order": 2
   },
   "78": {
-    "can_color": true,
+    "can_color": false,
     "children": [
       {
         "frame": "square_d_05_001.png",
@@ -912,7 +928,7 @@ window.allobjects = function() {
     "default_z_order": 2
   },
   "80": {
-    "can_color": true,
+    "can_color": false,
     "default_base_color_channel": 1004,
     "frame": "square_d_05_001.png",
     "glow_frame": "square_d_05_glow_001.png",
@@ -926,7 +942,7 @@ window.allobjects = function() {
     "default_z_order": -7
   },
   "81": {
-    "can_color": true,
+    "can_color": false,
     "children": [
       {
         "frame": "square_d_05_001.png",
@@ -960,7 +976,7 @@ window.allobjects = function() {
     "default_z_order": 2
   },
   "82": {
-    "can_color": true,
+    "can_color": false,
     "children": [
       {
         "frame": "square_d_05_001.png",
@@ -1111,7 +1127,7 @@ window.allobjects = function() {
     "default_z_order": 1
   },
   "90": {
-    "can_color": true,
+    "can_color": false,
     "children": [
       {
         "frame": "block005b_05_001.png",
@@ -1133,7 +1149,7 @@ window.allobjects = function() {
     "default_z_order": 2
   },
   "91": {
-    "can_color": true,
+    "can_color": false,
     "children": [
       {
         "frame": "block005b_05_001.png",
@@ -1155,7 +1171,7 @@ window.allobjects = function() {
     "default_z_order": 2
   },
   "92": {
-    "can_color": true,
+    "can_color": false,
     "children": [
       {
         "frame": "block005b_05_001.png",
@@ -1177,7 +1193,7 @@ window.allobjects = function() {
     "default_z_order": 2
   },
   "93": {
-    "can_color": true,
+    "can_color": false,
     "children": [
       {
         "frame": "block005b_05_001.png",
@@ -1201,6 +1217,7 @@ window.allobjects = function() {
   "94": {
     "type": "solid",
     "frame": "block005b_05_001.png",
+    "can_color": false,
     "gridW": 1,
     "gridH": 1,
     "glow": true,
@@ -1211,7 +1228,7 @@ window.allobjects = function() {
     "default_z_order": 1
   },
   "95": {
-    "can_color": true,
+    "can_color": false,
     "children": [
       {
         "frame": "block005b_05_001.png",
@@ -1233,7 +1250,7 @@ window.allobjects = function() {
     "default_z_order": 2
   },
   "96": {
-    "can_color": true,
+    "can_color": false,
     "children": [
       {
         "frame": "block005b_05_001.png",
@@ -17078,15 +17095,14 @@ window.allobjects = function() {
     "can_color": false,
     "children": [
       {
-        "frame": "gravring_01_001.png",
+        "frame": "gravJumpRing_01_001.png",
         "localDy": 0,
-        "tint": 65280,
         "z": -1
       }
     ],
     "default_base_color_channel": 0,
-    "frame": "gravring_01_001.png",
-    "glow_frame": "gravring_01_glow_001.png",
+    "frame": "gravJumpRing_01_001.png",
+    "glow_frame": "gravJumpRing_01_glow_001.png",
     "gridH": 1,
     "gridW": 1,
     "spritesheet": "GJ_GameSheet-uhd",
