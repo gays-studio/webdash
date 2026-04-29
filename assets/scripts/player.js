@@ -2332,6 +2332,36 @@ _updateBallJump(_0x2fe319) {
           }
           this.killPlayer();
           return;
+        } else if (_colType === slopeType) {
+          // slope collision: determine surface Y at player's X and land smoothly
+          try {
+            const surfaceY = (typeof gameObj.getSlopeSurfaceY === 'function') ? gameObj.getSlopeSurfaceY(pieceWidth) : null;
+            if (surfaceY !== null && surfaceY !== undefined) {
+              const prevFoot = playersLastY - playerSize + gamemodeAddition;
+              const curFoot  = playersY - playerSize + gamemodeAddition;
+              const tol = 10; // tolerance in world units
+              if (!this.p.gravityFlipped) {
+                // landing from above onto slope
+                if ((prevFoot >= surfaceY - tol && curFoot <= surfaceY + tol) && (this.p.yVelocity <= 0 || this.p.onGround)) {
+                  this.p.y = surfaceY + playerSize;
+                  this.hitGround();
+                  _0x30410f = true;
+                  this.p.collideBottom = surfaceY;
+                  continue;
+                }
+              } else {
+                // flipped gravity: landing from below onto inverted slope
+                if ((prevFoot <= surfaceY + tol && curFoot >= surfaceY - tol) && (this.p.yVelocity >= 0 || this.p.onGround)) {
+                  this.p.y = surfaceY - playerSize;
+                  this.hitGround();
+                  _0x30410f = true;
+                  this.p.onCeiling = true;
+                  this.p.collideTop = surfaceY;
+                  continue;
+                }
+              }
+            }
+          } catch (e) {}
         } else if (_colType === solidType) {
           let _0x146a97 = playersY - playerSize + gamemodeAddition;
           let _0x869e42 = playersLastY - playerSize + gamemodeAddition;
